@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { Fragment, createContext, useContext, useMemo, useState } from 'react';
 import { store } from './api.js';
+import { HI } from './hi.js';
 
 // All driver-facing strings are externalised; English + Hindi at launch (UX 1.5).
 const STRINGS = {
@@ -33,18 +34,35 @@ const STRINGS = {
 
 const I18nCtx = createContext(null);
 
+// Hook-free translation by English source text: tx('Plug in your car'). The provider remounts the
+// tree on a language change, so every tx() call re-renders in the new language.
+let currentLang = store.get('cx.lang') || 'en';
+const fill = (s, vars) => (vars ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] ?? '')) : s);
+export function tx(en, vars) {
+  const s = currentLang === 'hi' ? HI[en] ?? en : en;
+  return fill(s, vars);
+}
+/** Translate an API message key, falling back to the English text the API sent. */
+export function txKey(key, vars, fallback) {
+  if (currentLang !== 'hi' || !key) return fallback;
+  const s = HI[`msg.${key}`];
+  if (!s) return fallback;
+  return fill(s, { ...vars, reason: vars?.reason ? `: ${vars.reason}` : '' });
+}
+
 export function I18nProvider({ children }) {
   const [lang, setLangState] = useState(store.get('cx.lang') || 'en');
   const value = useMemo(() => ({
     lang,
     setLang: (l) => {
+      currentLang = l;
       store.set('cx.lang', l);
       setLangState(l);
       document.documentElement.lang = l;
     },
     t: (k) => STRINGS[lang]?.[k] ?? STRINGS.en[k] ?? k,
   }), [lang]);
-  return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
+  return <I18nCtx.Provider value={value}><Fragment key={lang}>{children}</Fragment></I18nCtx.Provider>;
 }
 
 export const useI18n = () => useContext(I18nCtx);

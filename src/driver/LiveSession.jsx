@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { API_URL, api, download, tokens } from '../lib/api.js';
-import { useI18n } from '../lib/i18n.jsx';
+import { tx, txKey, useI18n } from '../lib/i18n.jsx';
 import { useNow } from '../lib/hooks.js';
 import { duration, kw, rs, rs0, dt } from '../lib/format.js';
 import { ActionButton, Card, ErrorBox, Field, Icon, Loading, Modal, Spinner, Status, cx, useToast } from '../components/ui.jsx';
@@ -38,7 +38,7 @@ function PlugAnimation() {
         <div className="absolute top-8 h-4 w-10 animate-[plug_1.6s_ease-in-out_infinite] rounded bg-brand-600" style={{ left: 60 }} />
       </div>
       <style>{'@keyframes plug{0%,100%{transform:translateX(0)}50%{transform:translateX(30px)}}'}</style>
-      <div className="text-lg font-semibold">Plug the cable into your vehicle</div>
+      <div className="text-lg font-semibold">{tx("Plug the cable into your vehicle")}</div>
     </div>
   );
 }
@@ -61,7 +61,7 @@ function Rating({ s, sessionId }) {
     try {
       await api(`/api/sessions/${sessionId}/rating`, { method: 'POST', sessionId, body: { stars: n, comment: c || undefined } });
       setDone(true);
-      toast('Thanks for rating!');
+      toast(tx('Thanks for rating!'));
     } catch (e) {
       toast(e.message, 'red');
     }
@@ -73,7 +73,7 @@ function Rating({ s, sessionId }) {
           <button key={n} type="button" aria-label={`${n} stars`} onClick={() => send(n, comment)} className="p-1"><Icon name="star" className={cx('h-8 w-8', n <= stars ? 'fill-amber-400 text-amber-400' : 'text-ink-300')} /></button>
         ))}
       </div>
-      {done && stars <= 3 && <div className="flex gap-2"><input className="input" placeholder="What went wrong? (optional)" value={comment} onChange={(e) => setComment(e.target.value)} /><button type="button" className="btn-secondary" onClick={() => send(stars, comment)}>Send</button></div>}
+      {done && stars <= 3 && <div className="flex gap-2"><input className="input" placeholder={tx("What went wrong? (optional)")} value={comment} onChange={(e) => setComment(e.target.value)} /><button type="button" className="btn-secondary" onClick={() => send(stars, comment)}>{tx("Send")}</button></div>}
     </div>
   );
 }
@@ -84,16 +84,16 @@ function Complaint({ open, onClose, sessionId }) {
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
   return (
-    <Modal open={open} onClose={onClose} title="Report a problem">
-      {done ? <div className="text-sm">We have your report. Ticket <b>{String(done.id).slice(-6).toUpperCase()}</b>; we respond by {dt(done.slaDueAt)}. Session details are attached automatically.</div> : (
+    <Modal open={open} onClose={onClose} title={tx("Report a problem")}>
+      {done ? <div className="text-sm">{tx("We have your report. Ticket")} <b>{String(done.id).slice(-6).toUpperCase()}</b>; we respond by {dt(done.slaDueAt)}. Session details are attached automatically.</div> : (
         <div className="space-y-3">
-          <Field label="What happened?">
+          <Field label={tx("What happened?")}>
             <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="did_not_start">Charging didn't start</option><option value="overcharged">I was overcharged</option><option value="stopped_early">It stopped early</option>
-              <option value="refund_missing">Refund not received</option><option value="spot_blocked">Spot blocked</option><option value="charger_damaged">Charger damaged</option><option value="other">Something else</option>
+              <option value="did_not_start">{tx("Charging didn't start")}</option><option value="overcharged">{tx("I was overcharged")}</option><option value="stopped_early">{tx("It stopped early")}</option>
+              <option value="refund_missing">{tx("Refund not received")}</option><option value="spot_blocked">{tx("Spot blocked")}</option><option value="charger_damaged">{tx("Charger damaged")}</option><option value="other">{tx("Something else")}</option>
             </select>
           </Field>
-          <Field label="Details (optional)"><textarea className="input min-h-[90px] py-2" value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
+          <Field label={tx("Details (optional)")}><textarea className="input min-h-[90px] py-2" value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
           <ErrorBox error={err} />
           <ActionButton className="btn-primary w-full" onClick={async () => {
             try {
@@ -101,7 +101,7 @@ function Complaint({ open, onClose, sessionId }) {
             } catch (e) {
               setErr(e);
             }
-          }}>Send report</ActionButton>
+          }}>{tx("Send report")}</ActionButton>
         </div>
       )}
     </Modal>
@@ -113,10 +113,10 @@ function OtpStop({ open, onClose, sessionId, onStopped }) {
   const [code, setCode] = useState('');
   const [err, setErr] = useState(null);
   return (
-    <Modal open={open} onClose={onClose} title="Stop with OTP">
+    <Modal open={open} onClose={onClose} title={tx("Stop with OTP")}>
       <div className="space-y-3 text-sm">
-        <p>This link is read-only. To stop charging we send a code to the phone number used for payment.</p>
-        {!sent ? <ActionButton className="btn-primary w-full" onClick={async () => { await api(`/api/sessions/${sessionId}/stop-otp/request`, { method: 'POST', sessionId }); setSent(true); }}>Send code</ActionButton> : (
+        <p>{tx("This link is read-only. To stop charging we send a code to the phone number used for payment.")}</p>
+        {!sent ? <ActionButton className="btn-primary w-full" onClick={async () => { await api(`/api/sessions/${sessionId}/stop-otp/request`, { method: 'POST', sessionId }); setSent(true); }}>{tx("Send code")}</ActionButton> : (
           <>
             <input className="input text-center text-lg tracking-[0.5em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="••••••" />
             <ErrorBox error={err} />
@@ -128,7 +128,7 @@ function OtpStop({ open, onClose, sessionId, onStopped }) {
               } catch (e) {
                 setErr(e);
               }
-            }}>Verify and stop</ActionButton>
+            }}>{tx("Verify and stop")}</ActionButton>
           </>
         )}
       </div>
@@ -198,8 +198,8 @@ export default function LiveSession() {
     };
   }, [id]);
 
-  if (err && !s) return <div className="space-y-3 p-4"><ErrorBox error={err} /><Link to="/" className="btn-secondary w-full">Go home</Link></div>;
-  if (!s) return <Loading label="Loading your session…" />;
+  if (err && !s) return <div className="space-y-3 p-4"><ErrorBox error={err} /><Link to="/" className="btn-secondary w-full">{tx("Go home")}</Link></div>;
+  if (!s) return <Loading label={tx("Loading your session…")} />;
 
   const owner = s.access === 'owner' || s.access === 'staff';
   const active = ACTIVE.includes(s.state);
@@ -225,7 +225,7 @@ export default function LiveSession() {
 
       {s.message && !(s.state === 'BILLED' && s.stopReason !== 'limit') && (
         <div className={cx('rounded-2xl p-4 text-sm', s.state === 'FAILED' ? 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200' : s.state === 'INTERRUPTED' || stale ? 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200' : 'bg-brand-50 text-brand-900 dark:bg-brand-950 dark:text-brand-100')} aria-live="polite">
-          {s.message}
+          {txKey(s.messageKey, s.messageVars, s.message)}
         </div>
       )}
 
@@ -244,10 +244,10 @@ export default function LiveSession() {
             <ActionButton className="btn-primary mt-4 w-full" onClick={async () => {
               const r = await api(`/api/sessions/${id}/pay`, { method: 'POST', sessionId: id });
               if (r.checkout?.provider === 'mock') location.href = `/pay/mock/${r.orderId}?s=${id}`;
-            }}>Try payment again</ActionButton>
+            }}>{tx("Try payment again")}</ActionButton>
           )}
           {owner && ['CREATED', 'PAID', 'STARTING'].includes(s.state) && (
-            <ActionButton className="btn-ghost mt-2 w-full" confirm="Cancel this session? Anything paid is refunded automatically." onClick={async () => setS((await api(`/api/sessions/${id}/cancel`, { method: 'POST', sessionId: id })).session)}>Cancel</ActionButton>
+            <ActionButton className="btn-ghost mt-2 w-full" confirm={tx("Cancel this session? Anything paid is refunded automatically.")} onClick={async () => setS((await api(`/api/sessions/${id}/cancel`, { method: 'POST', sessionId: id })).session)}>{tx("Cancel")}</ActionButton>
           )}
         </Card>
       )}
@@ -263,18 +263,18 @@ export default function LiveSession() {
           {s.capPaise > 0 && (
             <div>
               <div className="h-3 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800"><div className={cx('h-full rounded-full transition-all', pct >= 80 ? 'bg-amber-500' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></div>
-              <div className="mt-1 flex justify-between text-xs muted"><span>{pct}% of your amount used</span>{pct >= 80 && <span className="font-semibold text-amber-600">80% used</span>}</div>
+              <div className="mt-1 flex justify-between text-xs muted"><span>{pct}% of your amount used</span>{pct >= 80 && <span className="font-semibold text-amber-600">{tx("80% used")}</span>}</div>
             </div>
           )}
-          {stale && <div className="text-xs text-amber-600">Waiting for update from the charger…</div>}
+          {stale && <div className="text-xs text-amber-600">{tx("Waiting for update from the charger…")}</div>}
           {owner ? (
             <button type="button" className="btn-danger btn-lg w-full" disabled={s.state === 'STOPPING'} onClick={() => setConfirmStop(true)}>
-              {s.state === 'STOPPING' ? <><Spinner className="h-5 w-5 text-white" /> Stopping…</> : t('stop')}
+              {s.state === 'STOPPING' ? <><Spinner className="h-5 w-5 text-white" /> {tx("Stopping…")}</> : t('stop')}
             </button>
           ) : (
-            <button type="button" className="btn-secondary w-full" onClick={() => setOtpStop(true)}>Stop (OTP to the payer's phone)</button>
+            <button type="button" className="btn-secondary w-full" onClick={() => setOtpStop(true)}>{tx("Stop (OTP to the payer's phone)")}</button>
           )}
-          <div className="text-center text-xs muted">You can close this page — charging continues and stops at your limit or when you unplug. Your SMS link reopens it.</div>
+          <div className="text-center text-xs muted">{tx("You can close this page — charging continues and stops at your limit or when you unplug. Your SMS link reopens it.")}</div>
         </Card>
       )}
 
@@ -282,28 +282,28 @@ export default function LiveSession() {
         <Card className="space-y-4 p-5">
           <div className="text-center">
             <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-950"><Icon name="check" /></div>
-            <div className="text-lg font-bold">Charging complete</div>
+            <div className="text-lg font-bold">{tx("Charging complete")}</div>
             <div className="text-sm muted">{t('unplug')}</div>
           </div>
           <dl className="divide-y divide-ink-100 text-sm dark:divide-ink-800">
             <div className="flex justify-between py-2"><dt className="muted">{t('energy')}</dt><dd className="font-semibold">{((s.energyWh || 0) / 1000).toFixed(3)} kWh</dd></div>
-            <div className="flex justify-between py-2"><dt className="muted">Time</dt><dd>{duration(s.startedAt, s.endedAt)}</dd></div>
-            {s.costs && <div className="flex justify-between py-2"><dt className="muted">Taxable value</dt><dd>{rs(s.costs.taxablePaise)}</dd></div>}
-            {s.costs && <div className="flex justify-between py-2"><dt className="muted">GST</dt><dd>{rs(s.costs.gstPaise)}</dd></div>}
+            <div className="flex justify-between py-2"><dt className="muted">{tx("Time")}</dt><dd>{duration(s.startedAt, s.endedAt)}</dd></div>
+            {s.costs && <div className="flex justify-between py-2"><dt className="muted">{tx("Taxable value")}</dt><dd>{rs(s.costs.taxablePaise)}</dd></div>}
+            {s.costs && <div className="flex justify-between py-2"><dt className="muted">{tx("GST")}</dt><dd>{rs(s.costs.gstPaise)}</dd></div>}
             <div className="flex justify-between py-2 text-base"><dt className="font-semibold">{t('total')}</dt><dd className="font-bold">{rs(s.costs?.totalPaise)}</dd></div>
-            {!s.postpaid && <div className="flex justify-between py-2"><dt className="muted">Prepaid</dt><dd>{rs(s.prepaidPaise)}</dd></div>}
+            {!s.postpaid && <div className="flex justify-between py-2"><dt className="muted">{tx("Prepaid")}</dt><dd>{rs(s.prepaidPaise)}</dd></div>}
             {s.refundPaise > 0 && (
               <div className="flex justify-between py-2 text-brand-700 dark:text-brand-400">
                 <dt className="font-semibold">{t('refund')} (automatic)</dt>
-                <dd className="text-right font-semibold">{rs(s.refundPaise)}<div className="text-xs font-normal muted">{s.refunds?.some((r) => r.status === 'succeeded') ? 'Sent to your payment method · usually instant, up to 5 days for some banks' : 'Processing'}</div></dd>
+                <dd className="text-right font-semibold">{rs(s.refundPaise)}<div className="text-xs font-normal muted">{s.refunds?.some((r) => r.status === 'succeeded') ? 'Sent to your payment method · usually instant, up to 5 days for some banks' : tx('Processing')}</div></dd>
               </div>
             )}
           </dl>
           {s.invoice?.number ? (
             <ActionButton className="btn-secondary w-full" onClick={() => download(`/api/sessions/${id}/invoice.pdf`, `${s.invoice.number.replace(/\//g, '-')}.pdf`, { sessionId: id })}><Icon name="doc" className="h-4 w-4" /> {t('invoice')} {s.invoice.number}</ActionButton>
-          ) : s.costs?.totalPaise > 0 ? <div className="text-center text-xs muted">Your invoice is being prepared.</div> : null}
+          ) : s.costs?.totalPaise > 0 ? <div className="text-center text-xs muted">{tx("Your invoice is being prepared.")}</div> : null}
           {owner && <div><div className="mb-1 text-center text-sm font-semibold">{t('rate')}</div><Rating s={s} sessionId={id} /></div>}
-          {owner && <ActionButton className="btn-ghost btn-sm w-full" onClick={async () => { const r = await api(`/api/sessions/${id}/unlock`, { method: 'POST', sessionId: id }); toast(r.message, r.ok ? 'green' : 'amber'); }}>Cable stuck? Unlock connector</ActionButton>}
+          {owner && <ActionButton className="btn-ghost btn-sm w-full" onClick={async () => { const r = await api(`/api/sessions/${id}/unlock`, { method: 'POST', sessionId: id }); toast(r.message, r.ok ? 'green' : 'amber'); }}>{tx("Cable stuck? Unlock connector")}</ActionButton>}
           {!tokens.driver() && <Link to="/login" className="block rounded-xl bg-ink-50 p-3 text-center text-sm dark:bg-ink-800">{t('installApp')} →</Link>}
         </Card>
       )}
@@ -312,14 +312,14 @@ export default function LiveSession() {
         <Card className="space-y-3 p-5">
           {s.refunds?.length > 0 && <div className="text-sm">Refund {rs(s.refunds.reduce((a, r) => a + r.amountPaise, 0))}: <Status value={s.refunds[0].status} /></div>}
           <Link to={`/charger/${encodeURIComponent(s.charger?.ocppId || '')}`} className="btn-primary w-full">{t('tryAnother')}</Link>
-          <Link to="/" className="btn-secondary w-full">Find another charger</Link>
+          <Link to="/" className="btn-secondary w-full">{tx("Find another charger")}</Link>
         </Card>
       )}
 
       {owner && <button type="button" className="btn-ghost btn-sm w-full" onClick={() => setComplaint(true)}><Icon name="alert" className="h-4 w-4" /> {t('reportProblem')}</button>}
       <div className="text-center text-xs muted">Support: {s.supportPhone} · Session {String(id).slice(-6).toUpperCase()}</div>
 
-      <Modal open={confirmStop} onClose={() => setConfirmStop(false)} title={t('stopConfirm')} footer={<><button type="button" className="btn-secondary" onClick={() => setConfirmStop(false)}>Keep charging</button><ActionButton className="btn-danger" onClick={async () => { await doStop(); setConfirmStop(false); }}>{t('stop')}</ActionButton></>}>
+      <Modal open={confirmStop} onClose={() => setConfirmStop(false)} title={t('stopConfirm')} footer={<><button type="button" className="btn-secondary" onClick={() => setConfirmStop(false)}>{tx("Keep charging")}</button><ActionButton className="btn-danger" onClick={async () => { await doStop(); setConfirmStop(false); }}>{t('stop')}</ActionButton></>}>
         <p className="text-sm">You'll pay only for the energy used so far ({rs(used)}). The rest is refunded automatically.</p>
       </Modal>
       <Complaint open={complaint} onClose={() => setComplaint(false)} sessionId={id} />

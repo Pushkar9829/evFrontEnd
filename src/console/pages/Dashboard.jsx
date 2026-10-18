@@ -65,6 +65,25 @@ function OpsCentre() {
   );
 }
 
+function SiteHostSummary() {
+  const { data } = useApi('/api/cms/site-host/summary?days=30');
+  if (!data) return null;
+  return (
+    <Card className="mb-4 p-4">
+      <div className="mb-2 font-semibold">Your site{data.sites.length > 1 ? 's' : ''} · last 30 days</div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {data.sites.map((s) => (
+          <div key={s._id} className="rounded-xl bg-brand-50 p-3 dark:bg-brand-950">
+            <div className="text-sm font-semibold">{s.name}</div>
+            <div className="mt-1 text-2xl font-bold">{rs(s.sharePaise, { decimals: 0 })}</div>
+            <div className="text-xs muted">your share ({(s.revenueShareBps || 0) / 100}%) of {rs(s.taxablePaise, { decimals: 0 })} · {s.sessions} sessions · {kwh(s.energyWh, 0)}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function TenantDashboard() {
   const nav = useNavigate();
   const { can } = useConsole();
@@ -76,6 +95,7 @@ function TenantDashboard() {
   return (
     <>
       <PageHeader title="Dashboard" sub="Live · refreshes every 10 s" />
+      {can('site.revenue_share') && <SiteHostSummary />}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
         <Stat label="Online" value={`${data.chargers.online}/${data.chargers.total}`} icon="plug" />
         <Stat label="Offline" value={data.chargers.offline} icon="alert" tone="red" />

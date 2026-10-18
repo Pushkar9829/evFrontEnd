@@ -4,6 +4,7 @@ import { api, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
 import { titleCase } from '../lib/format.js';
 import { Icon, Loading, cx } from '../components/ui.jsx';
+import { useTemporaryBrand } from '../lib/brand.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import { ChargersPage, ChargerDetailPage, SitesPage } from './pages/Chargers.jsx';
 import { SessionsPage, SessionDetailPage, CustomersPage, ComplaintsPage } from './pages/Sessions.jsx';
@@ -11,6 +12,7 @@ import { TariffsPage, FinancePage, PromosPage } from './pages/Money.jsx';
 import { StaffPage, AlertsPage, ApprovalsPage, AuditPage, CompanyPage, ReportsPage, RoamingPage } from './pages/Org.jsx';
 import SimulatorPage from './pages/Simulator.jsx';
 import AccessPage from './pages/Access.jsx';
+import QrStickersPage from './pages/QrStickers.jsx';
 import { TenantsPage, HealthPage, PlatformMoneyPage, SwitchesPage, ModelsPage, PartnersPage, ContentPage, SecurityPage, DataRequestsPage } from './pages/Platform.jsx';
 
 const Ctx = createContext(null);
@@ -78,6 +80,7 @@ export default function Console() {
   const has = !!tokens.staff();
   const { data: me, error, loading } = useApi(has ? '/api/auth/me' : null, { auth: 'staff' });
   const [open, setOpen] = useState(false);
+  useTemporaryBrand(me?.branding);
   const value = useMemo(() => me && ({
     me,
     can: (...p) => p.some((x) => me.permissions.includes(x)),
@@ -96,7 +99,7 @@ export default function Console() {
   return (
     <Ctx.Provider value={value}>
       <div className="flex min-h-dvh">
-        <aside className={cx('fixed inset-y-0 left-0 z-[900] w-64 shrink-0 overflow-y-auto border-r border-ink-200 bg-white p-3 transition-transform dark:border-ink-800 dark:bg-ink-900 lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
+        <aside className={cx('print:hidden fixed inset-y-0 left-0 z-[900] w-64 shrink-0 overflow-y-auto border-r border-ink-200 bg-white p-3 transition-transform dark:border-ink-800 dark:bg-ink-900 lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
           <div className="mb-4 flex items-center gap-2 px-2 pt-1">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" className="h-5 w-5" /></span>
             <div className="min-w-0"><div className="truncate text-sm font-bold">{ctxLabel}</div><div className="truncate text-xs muted">{me.contexts.find((c) => c.role === me.ctx.role && c.tenant === me.ctx.tenant)?.roleName || titleCase(me.ctx.role)}</div></div>
@@ -111,14 +114,14 @@ export default function Console() {
         </aside>
         {open && <div className="fixed inset-0 z-[800] bg-ink-950/40 lg:hidden" onClick={() => setOpen(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-[700] flex items-center gap-3 border-b border-ink-200 bg-white/90 px-4 py-2.5 backdrop-blur dark:border-ink-800 dark:bg-ink-950/90">
+          <header className="print:hidden sticky top-0 z-[700] flex items-center gap-3 border-b border-ink-200 bg-white/90 px-4 py-2.5 backdrop-blur dark:border-ink-800 dark:bg-ink-950/90">
             <button type="button" className="btn-ghost btn-sm lg:hidden" onClick={() => setOpen(true)} aria-label="Menu"><Icon name="list" /></button>
             <div className="flex-1" />
             <Workspace me={me} />
             <span className="hidden text-sm muted sm:inline">{me.user.name || me.user.email}</span>
             <button type="button" className="btn-ghost btn-sm" onClick={() => { tokens.setStaff(null); location.href = '/console/login'; }}><Icon name="out" className="h-4 w-4" /> Sign out</button>
           </header>
-          <main className="min-w-0 flex-1 p-4 lg:p-6">
+          <main className="min-w-0 flex-1 p-4 lg:p-6 print:p-0">
             <Routes>
               <Route index element={<Dashboard />} />
               <Route path="chargers" element={<ChargersPage />} />
@@ -139,6 +142,7 @@ export default function Console() {
               <Route path="staff" element={<StaffPage />} />
               <Route path="company" element={<CompanyPage />} />
               <Route path="access" element={<AccessPage />} />
+              <Route path="qr" element={<QrStickersPage />} />
               <Route path="audit" element={<AuditPage />} />
               <Route path="p/tenants" element={<TenantsPage />} />
               <Route path="p/health" element={<HealthPage />} />

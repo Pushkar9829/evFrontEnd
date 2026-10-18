@@ -1,4 +1,5 @@
 // Data rights for anyone who charged as a guest: prove the phone with an OTP, then export or request deletion.
+import { tx } from '../lib/i18n.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, tokens } from '../lib/api.js';
@@ -29,20 +30,20 @@ export default function Privacy() {
   };
   return (
     <div className="mx-auto max-w-md space-y-4 p-4">
-      <h1 className="text-xl font-bold">Your data</h1>
-      <p className="text-sm muted">Charged without an account? Verify your phone number to download your data or ask us to delete it. {tokens.driver() && <>Logged in drivers can do this from <Link className="font-semibold text-brand-700" to="/account">Account</Link>.</>}</p>
+      <h1 className="text-xl font-bold">{tx("Your data")}</h1>
+      <p className="text-sm muted">Charged without an account? Verify your phone number to download your data or ask us to delete it. {tokens.driver() && <>{tx("Logged in drivers can do this from")} <Link className="font-semibold text-brand-700" to="/account">{tx("Account")}</Link>.</>}</p>
       <Card className="space-y-3 p-4">
         {done ? <div className="text-sm">{done}</div> : (
           <>
-            <Field label="Mobile number"><input className="input" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+            <Field label={tx("Mobile number")}><input className="input" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
             {!sent ? (
-              <ActionButton className="btn-primary w-full" disabled={phone.replace(/\D/g, '').length < 10} onClick={async () => { try { await api('/api/public/data-requests/otp', { method: 'POST', auth: 'none', body: { phone } }); setSent(true); } catch (e) { setErr(e); } }}>Send code</ActionButton>
+              <ActionButton className="btn-primary w-full" disabled={phone.replace(/\D/g, '').length < 10} onClick={async () => { try { await api('/api/public/data-requests/otp', { method: 'POST', auth: 'none', body: { phone } }); setSent(true); } catch (e) { setErr(e); } }}>{tx("Send code")}</ActionButton>
             ) : (
               <>
-                <Field label="Code"><input className="input text-center tracking-[0.4em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field>
+                <Field label={tx("Code")}><input className="input text-center tracking-[0.4em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field>
                 <div className="grid grid-cols-2 gap-2">
-                  <ActionButton className="btn-secondary" disabled={code.length !== 6} onClick={() => submit('export')}>Download my data</ActionButton>
-                  <ActionButton className="btn-danger" disabled={code.length !== 6} confirm="Ask us to delete your data? This cannot be undone." onClick={() => submit('delete')}>Delete my data</ActionButton>
+                  <ActionButton className="btn-secondary" disabled={code.length !== 6} onClick={() => submit('export')}>{tx("Download my data")}</ActionButton>
+                  <ActionButton className="btn-danger" disabled={code.length !== 6} confirm={tx("Ask us to delete your data? This cannot be undone.")} onClick={() => submit('delete')}>{tx("Delete my data")}</ActionButton>
                 </div>
               </>
             )}

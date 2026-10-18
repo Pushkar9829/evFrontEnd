@@ -3,10 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { api, newKey, store, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
-import { useI18n } from '../lib/i18n.jsx';
+import { tx, useI18n } from '../lib/i18n.jsx';
+import { useTemporaryBrand } from '../lib/brand.jsx';
 import { rs, rs0 } from '../lib/format.js';
 import { Card, ErrorBox, Icon, Loading, Spinner, Status, cx } from '../components/ui.jsx';
-import { CONNECTOR_LABEL, ChargerCard, priceLine } from './ChargerBits.jsx';
+import { CONNECTOR_LABEL, ChargerCard, nextChangeText, priceLine } from './ChargerBits.jsx';
 
 function loadRazorpay() {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,7 @@ export default function QrStart() {
   const nav = useNavigate();
   const { cfg } = useOutletContext() || {};
   const { data, error, loading } = useApi(`/api/public/qr/${encodeURIComponent(ocppId)}/${connector}`, { auth: 'none' });
+  useTemporaryBrand(data?.branding);
   const loggedIn = !!tokens.driver();
   const me = useApi(loggedIn ? '/api/me' : null, { auth: 'driver' });
   const [amount, setAmount] = useState(() => Number(store.get('cx.lastAmount')) || 20000);
@@ -59,11 +61,11 @@ export default function QrStart() {
       <div className="space-y-4 p-4">
         <Card className="p-5 text-center">
           <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-full bg-amber-100 text-amber-700"><Icon name="alert" /></div>
-          <h1 className="text-lg font-bold">{error.code === 'NOT_IN_SERVICE' ? 'This charger is not in service' : 'Charger not found'}</h1>
-          <p className="mt-1 text-sm muted">Nothing has been charged. Try one of these nearby:</p>
+          <h1 className="text-lg font-bold">{error.code === 'NOT_IN_SERVICE' ? tx('This charger is not in service') : tx('Charger not found')}</h1>
+          <p className="mt-1 text-sm muted">{tx("Nothing has been charged. Try one of these nearby:")}</p>
         </Card>
         {alts.map((c) => <ChargerCard key={c.ocppId} c={c} />)}
-        <Link to="/" className="btn-secondary w-full">Find another charger</Link>
+        <Link to="/" className="btn-secondary w-full">{tx("Find another charger")}</Link>
       </div>
     );
   }
@@ -122,14 +124,15 @@ export default function QrStart() {
           <Status value={conn.status} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-xl bg-ink-50 p-2 dark:bg-ink-800"><div className="text-xs muted">Connector {conn.number}</div><div className="font-semibold">{CONNECTOR_LABEL[conn.type] || conn.type} · {conn.maxPowerKw} kW</div></div>
+          <div className="rounded-xl bg-ink-50 p-2 dark:bg-ink-800"><div className="text-xs muted">{tx("Connector")} {conn.number}</div><div className="font-semibold">{CONNECTOR_LABEL[conn.type] || conn.type} · {conn.maxPowerKw} kW</div></div>
           <div className="rounded-xl bg-ink-50 p-2 dark:bg-ink-800"><div className="text-xs muted">{t('price')}</div><div className="font-semibold">{rs(data.price?.energyPaisePerKwh)}/kWh</div></div>
         </div>
         <div className="mt-2 text-xs muted">{priceLine(data.price, t)}</div>
+        {data.price?.nextChange && <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">{nextChangeText(data.price)} — {tx("the price when you start is locked for your whole session.")}</div>}
         {/* QR-06: compare with the ID printed on the charger; our QR only opens chargex */}
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-ink-300 p-2 text-xs dark:border-ink-700">
           <Icon name="shield" className="h-4 w-4 text-brand-600" />
-          <span>Check this matches the ID printed on the charger: <b className="font-mono">{data.printedId}</b>. We never ask you to pay a personal UPI ID.</span>
+          <span>{tx("Check this matches the ID printed on the charger:")} <b className="font-mono">{data.printedId}</b>{tx(". We never ask you to pay a personal UPI ID.")}</span>
         </div>
         {data.connectors?.length > 1 && (
           <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -141,12 +144,12 @@ export default function QrStart() {
       </Card>
 
       {!usable ? (
-        <ErrorBox error={{ message: conn.status === 'Offline' ? 'This charger is offline right now. Nothing will be charged. Try another charger nearby.' : 'This connector is not available right now. Try another connector.' }} />
+        <ErrorBox error={{ message: conn.status === 'Offline' ? tx('This charger is offline right now. Nothing will be charged. Try another charger nearby.') : tx('This connector is not available right now. Try another connector.') }} />
       ) : (
         <>
           {user && (user.autopay?.status === 'active' || user.fleet) && (
             <Card className="flex gap-2 p-2">
-              {[{ v: 'upi', l: 'Prepay UPI' }, user.autopay?.status === 'active' && { v: 'autopay', l: 'UPI Autopay' }, user.fleet && { v: 'fleet', l: 'Fleet account' }].filter(Boolean).map((o) => (
+              {[{ v: 'upi', l: tx('Prepay UPI') }, user.autopay?.status === 'active' && { v: 'autopay', l: tx('UPI Autopay') }, user.fleet && { v: 'fleet', l: tx('Fleet account') }].filter(Boolean).map((o) => (
                 <button key={o.v} type="button" onClick={() => setMode(o.v)} className={cx('btn-sm btn flex-1', mode === o.v ? 'bg-brand-600 text-white' : 'btn-ghost')}>{o.l}</button>
               ))}
             </Card>
@@ -169,10 +172,10 @@ export default function QrStart() {
               </div>
               <label className="block">
                 <span className="label">{t('custom')} (₹{minA / 100}–₹{maxA / 100})</span>
-                <input className="input" inputMode="numeric" placeholder="e.g. 350" value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^\d]/g, ''))} />
+                <input className="input" inputMode="numeric" placeholder={tx("e.g. 350")} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^\d]/g, ''))} />
               </label>
               {custom && !amountOk && <div className="text-xs text-red-600">Enter between ₹{minA / 100} and ₹{maxA / 100}.</div>}
-              {!custom && est && <div className="text-xs muted">About {est.kwh} kWh, roughly {est.minutes} min at full power.</div>}
+              {!custom && est && <div className="text-xs muted">{tx("About {{kwh}} kWh, roughly {{min}} min at full power.", { kwh: est.kwh, min: est.minutes })}</div>}
             </Card>
           )}
           {!loggedIn && (
@@ -181,23 +184,23 @@ export default function QrStart() {
                 <span className="label">{t('phoneForReceipt')}</span>
                 <input className="input text-base" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </label>
-              {phone && !phoneOk && <div className="mt-1 text-xs text-red-600">Enter a valid 10-digit mobile number.</div>}
-              <div className="mt-2 text-xs muted">No account needed. <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="font-semibold text-brand-700">Log in</Link> for history and one-tap payments.</div>
+              {phone && !phoneOk && <div className="mt-1 text-xs text-red-600">{tx("Enter a valid 10-digit mobile number.")}</div>}
+              <div className="mt-2 text-xs muted">{tx("No account needed.")} <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="font-semibold text-brand-700">{tx("Log in")}</Link> {tx("for history and one-tap payments.")}</div>
             </Card>
           )}
           <div>
-            {!showPromo ? <button type="button" className="text-xs font-semibold text-brand-700" onClick={() => setShowPromo(true)}>Have a promo code?</button> : (
-              <input className="input" placeholder="Promo code" value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase())} />
+            {!showPromo ? <button type="button" className="text-xs font-semibold text-brand-700" onClick={() => setShowPromo(true)}>{tx("Have a promo code?")}</button> : (
+              <input className="input" placeholder={tx("Promo code")} value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase())} />
             )}
           </div>
           <ErrorBox error={err} />
           <div className="sticky bottom-0 -mx-4 border-t border-ink-200 bg-white/95 p-4 backdrop-blur dark:border-ink-800 dark:bg-ink-950/95">
             <button type="button" disabled={!canPay} onClick={pay} className="btn-primary btn-lg w-full">
               {busy ? <Spinner className="h-5 w-5 text-white" /> : <Icon name="bolt" />}
-              {mode === 'upi' ? `${t('payUpi')} · ${rs0(finalAmount)}` : mode === 'fleet' ? 'Start on fleet account' : 'Start with UPI Autopay'}
+              {mode === 'upi' ? `${t('payUpi')} · ${rs0(finalAmount)}` : mode === 'fleet' ? tx('Start on fleet account') : tx('Start with UPI Autopay')}
             </button>
             <div className="mt-2 text-center text-xs muted">
-              {mode === 'upi' ? <>{rs0(finalAmount)} {t('prepaidNote')}. No energy delivered = no money taken.</> : 'You pay only for the energy used, after the session.'}
+              {mode === 'upi' ? <>{rs0(finalAmount)} {t('prepaidNote')}. {tx('No energy delivered = no money taken.')}</> : tx('You pay only for the energy used, after the session.')}
             </div>
           </div>
         </>

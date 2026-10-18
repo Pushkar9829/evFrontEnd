@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { I18nProvider } from './lib/i18n.jsx';
+import { BrandProvider } from './lib/brand.jsx';
 import { ToastProvider } from './components/ui.jsx';
 import './index.css';
 
@@ -33,11 +34,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <I18nProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </I18nProvider>
+        <BrandProvider>
+          <I18nProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </I18nProvider>
+        </BrandProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </React.StrictMode>,

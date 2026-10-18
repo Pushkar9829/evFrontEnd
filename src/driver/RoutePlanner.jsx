@@ -1,4 +1,5 @@
 // Route planner with charging stops (Phase 2). Place search uses OpenStreetMap Nominatim.
+import { tx } from '../lib/i18n.jsx';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, tokens } from '../lib/api.js';
@@ -27,9 +28,9 @@ function PlaceInput({ label, value, onChange, allowMe }) {
   return (
     <Field label={label} className="relative">
       <div className="flex gap-2">
-        <input className="input" value={q} placeholder="Search a place" onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }} />
+        <input className="input" value={q} placeholder={tx("Search a place")} onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }} />
         {allowMe && (
-          <button type="button" className="btn-secondary" aria-label="Use my location" onClick={() => navigator.geolocation?.getCurrentPosition((p) => { const v = { lat: p.coords.latitude, lng: p.coords.longitude, label: 'My location' }; setQ(v.label); onChange(v); })}>
+          <button type="button" className="btn-secondary" aria-label={tx("Use my location")} onClick={() => navigator.geolocation?.getCurrentPosition((p) => { const v = { lat: p.coords.latitude, lng: p.coords.longitude, label: 'My location' }; setQ(v.label); onChange(v); })}>
             <Icon name="pin" className="h-4 w-4" />
           </button>
         )}
@@ -70,18 +71,18 @@ export default function RoutePlanner() {
 
   return (
     <div className="space-y-4 p-4">
-      <h1 className="text-xl font-bold">Plan a trip</h1>
+      <h1 className="text-xl font-bold">{tx("Plan a trip")}</h1>
       <Card className="space-y-3 p-4">
-        <PlaceInput label="From" value={from} onChange={setFrom} allowMe />
-        <PlaceInput label="To" value={to} onChange={setTo} />
+        <PlaceInput label={tx("From")} value={from} onChange={setFrom} allowMe />
+        <PlaceInput label={tx("To")} value={to} onChange={setTo} />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Field label="Full-battery range (km)"><input className="input" inputMode="numeric" value={f.rangeKm} onChange={(e) => setF({ ...f, rangeKm: e.target.value })} /></Field>
-          <Field label="Battery now (%)"><input className="input" inputMode="numeric" value={f.socPct} onChange={(e) => setF({ ...f, socPct: e.target.value })} /></Field>
-          <Field label="Charge stops to (%)"><input className="input" inputMode="numeric" value={f.chargeToPct} onChange={(e) => setF({ ...f, chargeToPct: e.target.value })} /></Field>
-          <Field label="Battery (kWh)"><input className="input" inputMode="decimal" value={f.batteryKwh} onChange={(e) => setF({ ...f, batteryKwh: e.target.value })} /></Field>
+          <Field label={tx("Full-battery range (km)")}><input className="input" inputMode="numeric" value={f.rangeKm} onChange={(e) => setF({ ...f, rangeKm: e.target.value })} /></Field>
+          <Field label={tx("Battery now (%)")}><input className="input" inputMode="numeric" value={f.socPct} onChange={(e) => setF({ ...f, socPct: e.target.value })} /></Field>
+          <Field label={tx("Charge stops to (%)")}><input className="input" inputMode="numeric" value={f.chargeToPct} onChange={(e) => setF({ ...f, chargeToPct: e.target.value })} /></Field>
+          <Field label={tx("Battery (kWh)")}><input className="input" inputMode="decimal" value={f.batteryKwh} onChange={(e) => setF({ ...f, batteryKwh: e.target.value })} /></Field>
         </div>
         {v && <div className="text-xs muted">Using your {v.label || v.model}{v.connectorTypes?.length ? ` · ${v.connectorTypes.join(', ')}` : ''}</div>}
-        <ActionButton className="btn-primary w-full" disabled={!from || !to} onClick={run}>Find charging stops</ActionButton>
+        <ActionButton className="btn-primary w-full" disabled={!from || !to} onClick={run}>{tx("Find charging stops")}</ActionButton>
         <ErrorBox error={err} />
       </Card>
       {plan && (
@@ -89,7 +90,7 @@ export default function RoutePlanner() {
           <Card className={`p-4 text-sm ${plan.feasible ? '' : 'border-red-300'}`}>
             <div className="flex items-center justify-between"><div className="font-semibold">{plan.message}</div><Badge tone={plan.feasible ? 'green' : 'red'}>{plan.totalKm} km</Badge></div>
             <div className="mt-1 text-xs muted">About {Math.floor(plan.driveMin / 60)}h {plan.driveMin % 60}m driving{plan.feasible && plan.arriveSocPct !== null ? ` · arrive with ~${plan.arriveSocPct}%` : ''}{plan.routeSource === 'straight_line' ? ' · distances estimated' : ''}</div>
-            <a className="btn-secondary btn-sm mt-3 w-full" href={plan.navigationUrl} target="_blank" rel="noreferrer">Open in Google Maps with stops</a>
+            <a className="btn-secondary btn-sm mt-3 w-full" href={plan.navigationUrl} target="_blank" rel="noreferrer">{tx("Open in Google Maps with stops")}</a>
           </Card>
           <Suspense fallback={<Loading />}>
             <MapView height={320} markers={[
@@ -106,15 +107,15 @@ export default function RoutePlanner() {
                   <div className="font-semibold">{s.site.name}</div>
                   <div className="text-xs muted">{s.label} · up to {s.maxPowerKw} kW</div>
                 </div>
-                {s.availableNow ? <Badge tone="green">Free now</Badge> : <Badge tone="blue">In use now</Badge>}
+                {s.availableNow ? <Badge tone="green">{tx("Free now")}</Badge> : <Badge tone="blue">{tx("In use now")}</Badge>}
               </div>
               <div className="mt-2 text-sm">Arrive ~{s.arriveSocPct}% → charge to {s.leaveSocPct}%: {s.kwh} kWh, ~{s.minutes} min{s.estCostPaise ? `, about ${rs(s.estCostPaise, { decimals: 0 })}` : ''}</div>
-              <Link to={`/charger/${encodeURIComponent(s.ocppId)}`} className="mt-2 inline-block text-xs font-semibold text-brand-700">Charger details →</Link>
+              <Link to={`/charger/${encodeURIComponent(s.ocppId)}`} className="mt-2 inline-block text-xs font-semibold text-brand-700">{tx("Charger details →")}</Link>
             </Card>
           ))}
         </>
       )}
-      <p className="text-center text-xs muted">Place search © OpenStreetMap contributors.</p>
+      <p className="text-center text-xs muted">{tx("Place search © OpenStreetMap contributors.")}</p>
     </div>
   );
 }

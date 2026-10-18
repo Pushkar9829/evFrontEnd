@@ -1,13 +1,20 @@
 import { Link } from 'react-router-dom';
 import { Badge, Icon, Status, cx } from '../components/ui.jsx';
 import { ago, rs } from '../lib/format.js';
-import { useI18n } from '../lib/i18n.jsx';
+import { tx, useI18n } from '../lib/i18n.jsx';
 
 export const CONNECTOR_LABEL = { CCS2: 'CCS2', Type2: 'Type 2', Bharat_AC001: 'Bharat AC-001', Bharat_DC001: 'Bharat DC-001', LEV_DC: 'LEV DC', Type6: 'Type 6', CHAdeMO: 'CHAdeMO', GBT: 'GB/T', Type1: 'Type 1', '3PIN': '3-pin' };
 
+/** "Price changes to ₹25/kWh at 6 pm" for time-of-day tariffs. */
+export function nextChangeText(price) {
+  if (!price?.nextChange) return null;
+  const at = new Date(price.nextChange.at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  return tx('Changes to {{rate}}/kWh at {{at}}', { rate: rs(price.nextChange.energyPaisePerKwh), at });
+}
+
 export function priceLine(price, t) {
   if (!price) return '—';
-  const parts = [`${rs(price.energyPaisePerKwh)}${t ? t('perKwh') : '/kWh'}`];
+  const parts = [`${rs(price.energyPaisePerKwh)}${t ? t('perKwh') : '/kWh'}${price.band && price.band !== 'Standard' ? ` (${price.band})` : ''}`];
   if (price.sessionFeePaise) parts.push(`+ ${rs(price.sessionFeePaise, { decimals: 0 })} ${t ? t('sessionFee') : 'session fee'}`);
   if (price.timePaisePerMin) parts.push(`+ ${rs(price.timePaisePerMin)}/min`);
   return `${parts.join(' ')}${price.gstIncluded ? ' (incl. GST)' : ` + ${price.gstRatePct}% GST`}`;

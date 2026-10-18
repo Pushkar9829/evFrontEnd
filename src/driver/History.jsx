@@ -1,3 +1,4 @@
+import { tx } from '../lib/i18n.jsx';
 import { Link } from 'react-router-dom';
 import { tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
@@ -7,13 +8,13 @@ import { Card, Empty, ErrorBox, Loading, Status } from '../components/ui.jsx';
 export default function History() {
   const logged = !!tokens.driver();
   const { data, error, loading } = useApi(logged ? '/api/me/sessions' : null, { auth: 'driver' });
-  if (!logged) return <div className="p-4"><Empty icon="clock" title="Your charging history">Log in with your phone number to see sessions, invoices and refunds. <Link className="font-semibold text-brand-700" to="/login?next=/history">Log in</Link></Empty></div>;
+  if (!logged) return <div className="p-4"><Empty icon="clock" title={tx("Your charging history")}>{tx("Log in with your phone number to see sessions, invoices and refunds.")} <Link className="font-semibold text-brand-700" to="/login?next=/history">{tx("Log in")}</Link></Empty></div>;
   if (loading) return <Loading />;
   return (
     <div className="space-y-5 p-4">
-      <h1 className="text-xl font-bold">History</h1>
+      <h1 className="text-xl font-bold">{tx("History")}</h1>
       <ErrorBox error={error} />
-      {!data?.months?.length && <Empty icon="bolt" title="No sessions yet">Your sessions, invoices and refunds will show here.</Empty>}
+      {!data?.months?.length && <Empty icon="bolt" title={tx("No sessions yet")}>{tx("Your sessions, invoices and refunds will show here.")}</Empty>}
       {data?.months?.map((m) => (
         <section key={m.month} className="space-y-2">
           <div className="flex items-baseline justify-between">

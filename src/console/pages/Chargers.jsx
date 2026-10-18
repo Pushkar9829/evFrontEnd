@@ -85,6 +85,7 @@ export function ChargersPage() {
       <PageHeader title="Chargers" sub="Live status per connector">
         <input className="input min-h-[36px] w-48 py-1 text-sm" placeholder="Search ID or label" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input min-h-[36px] w-auto py-1 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All</option><option value="online">Online</option><option value="offline">Offline</option><option value="faulted">Faulted</option><option value="charging">Charging</option></select>
+        <button type="button" className="btn-secondary" onClick={() => nav(`/console/qr${status || q ? `?ids=${(data?.chargers || []).map((c) => c._id).join(',')}` : ''}`)}>Print QR stickers</button>
         {can('charger.manage') && !isPlatform && <button type="button" className="btn-primary" onClick={() => setAdd(true)}>Add charger</button>}
       </PageHeader>
       <ErrorBox error={error} />
@@ -151,6 +152,7 @@ export function ChargerDetailPage() {
       <PageHeader title={<span className="font-mono">{c.ocppId}</span>} sub={`${c.label || ''} · ${c.site?.name} · ${c.vendor || '—'} ${c.model || ''} · firmware ${c.firmware || '—'} · ${c.protocol}`}>
         {c.online ? <Badge tone="green">Online · last seen {ago(c.lastSeen)}</Badge> : <Badge tone="gray">Offline · {ago(c.lastSeen)}</Badge>}
         {!c.inService && <Badge tone="amber">Out of service</Badge>}
+        <Link to={`/console/qr?ids=${c._id}`} className="btn-secondary btn-sm">QR stickers</Link>
         {c.roamingEnabled && <Badge tone="violet">Roaming</Badge>}
       </PageHeader>
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

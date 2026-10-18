@@ -143,6 +143,7 @@ export function PlatformMoneyPage() {
     <>
       <PageHeader title="Payouts & commission" sub="Commission rules, payout runs, holds, manual adjustments and reconciliation (maker-checker)">
         <ActionButton className="btn-secondary" success={(r) => `${r.payouts.length} payout(s) created`} onClick={() => api('/api/admin/payouts/run', { method: 'POST', body: {} })}>Run payouts now</ActionButton>
+        <ActionButton className="btn-secondary" success={(r) => `${r.month}: ${r.fleetInvoices} fleet invoice(s), ${r.planFees} plan fee(s)`} onClick={() => api('/api/admin/billing/monthly', { method: 'POST', body: {} })}>Run monthly billing</ActionButton>
         <ActionButton className="btn-secondary" success={(r) => `Reconciliation: ${r.run.status} (${r.run.mismatches.length} mismatches)`} onClick={() => api('/api/admin/reconciliation/run', { method: 'POST', body: {} })}>Run reconciliation</ActionButton>
       </PageHeader>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'revenue', label: 'Revenue by tenant' }, { value: 'commission', label: 'Commission rules' }, { value: 'payouts', label: 'Payouts' }, { value: 'adjust', label: 'Adjustments' }, { value: 'recon', label: 'Reconciliation' }]} />

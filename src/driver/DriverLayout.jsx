@@ -1,9 +1,10 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Suspense } from 'react';
-import { useI18n } from '../lib/i18n.jsx';
+import { tx, useI18n } from '../lib/i18n.jsx';
 import { useApi, useOnline } from '../lib/hooks.js';
 import { tokens } from '../lib/api.js';
 import { Icon, Loading, cx } from '../components/ui.jsx';
+import { useBrand } from '../lib/brand.jsx';
 
 export function useDriver() {
   const has = !!tokens.driver();
@@ -13,6 +14,7 @@ export function useDriver() {
 
 export default function DriverLayout() {
   const { t, lang, setLang } = useI18n();
+  const { brand } = useBrand();
   const online = useOnline();
   const { data: cfg } = useApi('/api/public/config', { auth: 'none' });
   const loc = useLocation();
@@ -27,12 +29,12 @@ export default function DriverLayout() {
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
       <header className="sticky top-0 z-[500] flex items-center justify-between border-b border-ink-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-ink-800 dark:bg-ink-950/90">
         <NavLink to="/" className="flex items-center gap-2 font-bold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" className="h-5 w-5" /></span>
-          ChargeX
+          {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" /> : <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" className="h-5 w-5" /></span>}
+          <span>{brand.name || 'ChargeX'}{brand.name && brand.name !== 'ChargeX' && <span className="block text-[10px] font-normal leading-none muted">{tx("powered by ChargeX")}</span>}</span>
         </NavLink>
         <div className="flex items-center gap-2">
-          <button type="button" className="btn-ghost btn-sm" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} aria-label="Change language">{lang === 'en' ? 'हिंदी' : 'English'}</button>
-          {!bare && <NavLink to="/console" className="btn-ghost btn-sm hidden sm:inline-flex">Operator login</NavLink>}
+          <button type="button" className="btn-ghost btn-sm" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} aria-label={tx("Change language")}>{lang === 'en' ? 'हिंदी' : 'English'}</button>
+          {!bare && <NavLink to="/console" className="btn-ghost btn-sm hidden sm:inline-flex">{tx("Operator login")}</NavLink>}
         </div>
       </header>
       {!online && <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">{t('offlineBanner')}</div>}

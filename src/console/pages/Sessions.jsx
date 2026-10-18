@@ -5,6 +5,7 @@ import { useApi, useInterval } from '../../lib/hooks.js';
 import { dt, duration, kwh, rs, titleCase } from '../../lib/format.js';
 import { ActionButton, Badge, Card, ErrorBox, Field, Loading, Modal, ReasonModal, Status, Table, Tabs, useToast } from '../../components/ui.jsx';
 import { PageHeader, useConsole } from '../Console.jsx';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 export function SessionsPage() {
   const nav = useNavigate();
@@ -130,6 +131,25 @@ export function SessionDetailPage() {
           </div>
         </Card>
       </div>
+      {s.meterPoints?.length > 1 && (
+        <Card className="mt-4 p-4">
+          <div className="mb-2 font-semibold">Meter graph</div>
+          <div style={{ height: 240 }}>
+            <ResponsiveContainer>
+              <LineChart data={s.meterPoints.map((p) => ({ t: new Date(p.t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), kWh: Math.round(p.wh) / 1000, kW: p.w !== undefined && p.w !== null ? Math.round(p.w / 100) / 10 : null }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="t" tick={{ fontSize: 10 }} minTickGap={30} />
+                <YAxis yAxisId="e" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="p" orientation="right" tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Line yAxisId="e" type="monotone" dataKey="kWh" stroke="rgb(var(--brand-600))" strokeWidth={2} dot={false} />
+                <Line yAxisId="p" type="stepAfter" dataKey="kW" stroke="#0ea5e9" strokeWidth={1.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="text-xs muted">Energy (kWh, left) and power (kW, right) from the charger's meter values.</div>
+        </Card>
+      )}
       {data.complaints.length > 0 && <Card className="mt-4 p-4 text-sm"><div className="mb-1 font-semibold">Complaints</div>{data.complaints.map((c) => <div key={c._id}>{titleCase(c.category)} · <Status value={c.status} /> · {c.description}</div>)}</Card>}
 
       <ReasonModal open={modal === 'stop'} title="Remote stop" onClose={() => setModal(null)} onSubmit={async (reason) => { const r = await api(`/api/cms/sessions/${id}/stop`, { method: 'POST', body: { reason } }); toast(r.message || 'Stop sent'); reload({ quiet: true }); }} />

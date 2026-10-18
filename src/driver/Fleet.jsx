@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, tokens } from '../lib/api.js';
+import { api, download, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
 import { dt, kwh, rs } from '../lib/format.js';
 import { ActionButton, Card, Empty, ErrorBox, Field, Loading, Stat, Table } from '../components/ui.jsx';
@@ -51,6 +51,7 @@ export default function FleetPage() {
             </div>
             <ActionButton className="btn-primary mt-2 w-full" onClick={async () => { await api('/api/me/fleet/drivers', { method: 'POST', auth: 'driver', body: { phone: drv.phone, spendLimitPaise: drv.limit ? Number(drv.limit) * 100 : undefined } }); setDrv({ phone: '', limit: '' }); reload({ quiet: true }); }}>Add driver</ActionButton>
           </Card>
+          <FleetInvoices />
           <Card className="p-4">
             <div className="mb-2 font-semibold">Recent sessions</div>
             <Table rows={data.recent} columns={[{ key: 'd', label: 'Driver', render: (r) => r.driver }, { key: 'e', label: 'Energy', render: (r) => kwh(r.energyWh) }, { key: 't', label: 'Amount', render: (r) => rs(r.totalPaise) }, { key: 'w', label: 'When', render: (r) => dt(r.endedAt) }]} />
@@ -60,5 +61,23 @@ export default function FleetPage() {
         <Card className="p-4 text-sm">You charge on the fleet account: choose "Fleet account" when you start. The bill goes to {f.name}.</Card>
       )}
     </div>
+  );
+}
+
+function FleetInvoices() {
+  const { data } = useApi('/api/me/fleet/invoices', { auth: 'driver' });
+  return (
+    <Card className="p-4">
+      <div className="mb-2 font-semibold">Monthly invoices</div>
+      <p className="mb-2 text-xs muted">One GST invoice per operator per month, issued on the 1st.</p>
+      <Table rows={data?.invoices || []} empty="No monthly invoices yet" columns={[
+        { key: 'm', label: 'Month', render: (i) => i.period },
+        { key: 'n', label: 'Invoice', render: (i) => <span className="font-mono text-xs">{i.number}</span> },
+        { key: 's', label: 'Operator', render: (i) => i.supplier?.name },
+        { key: 'l', label: 'Sessions', render: (i) => i.lines?.length },
+        { key: 't', label: 'Total', render: (i) => rs(i.totalPaise) },
+        { key: 'p', label: '', render: (i) => <button type="button" className="btn-ghost btn-sm" onClick={() => download(`/api/me/fleet/invoices/${i._id}/pdf`, `${i.number.replace(/\//g, '-')}.pdf`, { auth: 'driver' })}>PDF</button> },
+      ]} />
+    </Card>
   );
 }

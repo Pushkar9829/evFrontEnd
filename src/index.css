@@ -2,10 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Brand palette as CSS variables (RGB triples) so white-label tenants can recolour the app at runtime. */
+:root {
+  --brand-50: 236 253 245; --brand-100: 209 250 229; --brand-200: 167 243 208; --brand-300: 110 231 183;
+  --brand-400: 52 211 153; --brand-500: 16 185 129; --brand-600: 5 150 105; --brand-700: 4 120 87;
+  --brand-800: 6 95 70; --brand-900: 6 78 59; --brand-950: 2 44 34;
+}
+
 @layer base {
   html { -webkit-tap-highlight-color: transparent; }
   body { min-height: 100dvh; }
-  :focus-visible { outline: 2px solid theme('colors.brand.500'); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid rgb(var(--brand-500)); outline-offset: 2px; }
 }
 
 @layer components {
