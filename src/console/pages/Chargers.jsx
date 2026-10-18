@@ -51,7 +51,7 @@ function AddCharger({ open, onClose, onDone }) {
             <Field label="Site"><select className="input" value={f.site} onChange={(e) => setF({ ...f, site: e.target.value })}><option value="">Choose site</option>{sites.data?.sites?.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}</select></Field>
             <Field label="Charger ID (as configured in the charger)"><input className="input font-mono" value={f.ocppId} onChange={(e) => setF({ ...f, ocppId: e.target.value })} placeholder="VG-PUN-010" /></Field>
             <Field label="Label"><input className="input" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} /></Field>
-            <Field label="OCPP version"><select className="input" value={f.protocol} onChange={(e) => setF({ ...f, protocol: e.target.value })}><option value="ocpp1.6">OCPP 1.6J (via adapter)</option><option value="ocpp2.0.1">OCPP 2.0.1</option></select></Field>
+            <Field label="OCPP version"><select className="input" value={f.protocol} onChange={(e) => setF({ ...f, protocol: e.target.value })}><option value="ocpp1.6">OCPP 1.6J (via adapter)</option><option value="ocpp2.0.1">OCPP 2.0.1</option><option value="ocpp2.1">OCPP 2.1 (V2G capable)</option></select></Field>
             <Field label="Tariff"><select className="input" value={f.tariffKey} onChange={(e) => setF({ ...f, tariffKey: e.target.value })}>{keys.map((k) => <option key={k}>{k}</option>)}</select></Field>
           </div>
           <div className="text-sm font-semibold">Connectors</div>
@@ -127,6 +127,7 @@ export function ChargerDetailPage() {
   const [fw, setFw] = useState('');
   const [pwd, setPwd] = useState(null);
   const [msgFilter, setMsgFilter] = useState('');
+  const [v2g, setV2g] = useState({ connector: 1, kw: 7, minutes: 30 });
   const msgs = useApi(tab === 'log' && can('ocpp.log.view') ? `/api/cms/chargers/${id}/messages?q=${encodeURIComponent(msgFilter)}` : null);
   useInterval(() => { reload({ quiet: true }); if (tab === 'log') msgs.reload({ quiet: true }); }, 5000);
   if (!data) return error ? <ErrorBox error={error} /> : <Loading />;
@@ -169,7 +170,7 @@ export function ChargerDetailPage() {
           </Card>
         ))}
       </div>
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'control', label: 'Command centre' }, { value: 'log', label: 'OCPP message log' }, { value: 'sessions', label: 'Recent sessions' }, { value: 'info', label: 'Setup & onboarding' }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'control', label: 'Command centre' }, { value: 'log', label: 'OCPP message log' }, { value: 'sessions', label: 'Recent sessions' }, { value: 'info', label: 'Setup & onboarding' }, { value: 'security', label: 'Security & V2G' }]} />
       <div className="mt-4">
         {tab === 'control' && (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -256,7 +257,44 @@ export function ChargerDetailPage() {
           </div>
         )}
       </div>
-      <ReasonModal open={!!reasonFor} title={reasonFor?.label} onClose={() => setReasonFor(null)} onSubmit={async (reason) => run({ action: reasonFor.action, connector: reasonFor.connector, reason })}>
+      {tab === 'security' && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Card className="space-y-3 p-4 text-sm">
+            <div className="flex items-center justify-between"><div className="font-semibold">OCPP security profile</div><Badge tone={c.securityProfile === 3 ? 'green' : 'amber'}>Profile {c.securityProfile || 2}</Badge></div>
+            <p className="text-xs muted">Profile 2: charger id + password over TLS. Profile 3: TLS with a client certificate signed by our CA; password logins are refused. Profile 3 needs the mutual-TLS listener (self-hosted or a TCP pass-through load balancer) — Render's proxy cannot forward client certificates.</p>
+            <div className="rounded-xl bg-ink-50 p-3 text-xs dark:bg-ink-800">
+              <div>Client certificate: {c.certificate?.serial ? <>serial <span className="font-mono">{c.certificate.serial.slice(0, 16)}…</span>, valid until {dt(c.certificate.notAfter)}</> : 'none yet'}</div>
+              <div>Installed on charger: {(c.installedCertificates || []).map((x) => x.certificateType).join(', ') || '— (read with "List certificates")'}</div>
+              {data.tlsOcppUrl && <div className="break-all">TLS endpoint: <span className="font-mono">{data.tlsOcppUrl}</span></div>}
+            </div>
+            {can('charger.config') && (
+              <div className="flex flex-wrap gap-2">
+                <ActionButton className="btn-secondary btn-sm" onClick={() => run({ action: 'install_root' })}>1. Install our root CA</ActionButton>
+                <ActionButton className="btn-secondary btn-sm" onClick={() => run({ action: 'renew_certificate' })}>2. Request client certificate</ActionButton>
+                <button type="button" className="btn-primary btn-sm" disabled={!c.certificate?.serial || c.securityProfile === 3} onClick={() => setReasonFor({ action: 'security_profile', profile: 3, label: 'Move to Security Profile 3 (needs approval)' })}>3. Move to Profile 3</button>
+                <ActionButton className="btn-ghost btn-sm" onClick={() => run({ action: 'list_certificates' })}>List certificates</ActionButton>
+                {c.securityProfile === 3 && <button type="button" className="btn-ghost btn-sm" onClick={() => setReasonFor({ action: 'security_profile', profile: 2, label: 'Back to Security Profile 2 (needs approval)' })}>Back to Profile 2</button>}
+              </div>
+            )}
+          </Card>
+          <Card className="space-y-3 p-4 text-sm">
+            <div className="flex items-center justify-between"><div className="font-semibold">V2G — vehicle to grid</div><Badge tone={c.protocol === 'ocpp2.1' ? 'green' : 'gray'}>{c.protocol}</Badge></div>
+            {c.protocol !== 'ocpp2.1' ? <p className="text-xs muted">Bidirectional charging needs an OCPP 2.1 charger and a car that supports it (ISO 15118-20).</p> : (
+              <>
+                <p className="text-xs muted">Discharge a connected car to support the site or grid. Runs inside the active session, needs approval, and the energy returned is credited on the driver's bill at the tariff's V2G rate.</p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <Field label="Connector"><select className="input min-h-[36px]" value={v2g.connector} onChange={(e) => setV2g({ ...v2g, connector: Number(e.target.value) })}>{c.connectors.map((x) => <option key={x.number} value={x.number}>#{x.number}</option>)}</select></Field>
+                  <Field label="kW"><input className="input min-h-[36px] w-20" value={v2g.kw} onChange={(e) => setV2g({ ...v2g, kw: e.target.value })} /></Field>
+                  <Field label="Minutes"><input className="input min-h-[36px] w-20" value={v2g.minutes} onChange={(e) => setV2g({ ...v2g, minutes: e.target.value })} /></Field>
+                  {can('smart.manage') && <button type="button" className="btn-primary btn-sm" onClick={() => setReasonFor({ action: 'v2g_discharge', connector: v2g.connector, kw: Number(v2g.kw), minutes: Number(v2g.minutes), label: `Discharge ${v2g.kw} kW for ${v2g.minutes} min` })}>Start discharge</button>}
+                  {can('smart.manage') && <ActionButton className="btn-ghost btn-sm" onClick={() => run({ action: 'v2g_stop', connector: v2g.connector })}>Stop discharge</ActionButton>}
+                </div>
+              </>
+            )}
+          </Card>
+        </div>
+      )}
+      <ReasonModal open={!!reasonFor} title={reasonFor?.label} onClose={() => setReasonFor(null)} onSubmit={async (reason) => run({ ...reasonFor, label: undefined, reason })}>
         {reasonFor?.action === 'remote_start' && <p className="text-sm muted">Starts an operator session billed to your company (no driver payment).</p>}
       </ReasonModal>
     </>

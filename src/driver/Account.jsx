@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, tokens } from '../lib/api.js';
+import { api, download, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
 import { useI18n } from '../lib/i18n.jsx';
 import { dateOnly, rs } from '../lib/format.js';
@@ -55,7 +55,8 @@ export default function Account() {
         <Row icon="money" title="Payments" sub={u.autopay?.status === 'active' ? `UPI Autopay on (up to ${rs(u.autopay.maxPaise, { decimals: 0 })})` : 'Saved methods, UPI Autopay'} onClick={() => setPanel('payments')} />
         <Row icon="doc" title="Invoices" sub={`${invoices.data?.invoices?.length || 0} invoices`} onClick={() => setPanel('invoices')} />
         <Row icon="alert" title="Complaints" sub={`${complaints.data?.complaints?.length || 0} reports`} onClick={() => setPanel('complaints')} />
-        <Row icon="bell" title="Notifications" sub="Push, SMS, WhatsApp" onClick={() => setPanel('notifications')} />
+        <Row icon="bell" title="Notifications" sub="Push, SMS, WhatsApp, email" onClick={() => setPanel('notifications')} />
+        <Row icon="doc" title="Download my data" sub="Everything we hold about you (JSON)" onClick={() => download('/api/me/data-export', 'chargex-my-data.json', { auth: 'driver' }).catch((e) => toast(e.message, 'red'))} />
       </Card>
       <Card className="divide-y divide-ink-100 dark:divide-ink-800">
         <Row icon="home" title="Host mode" sub={u.hostTenant ? 'Your charger, price and earnings' : 'Share your charger and earn'} to="/host" />
@@ -104,6 +105,7 @@ export default function Account() {
 
 function VehiclesModal({ open, onClose, user, reload }) {
   const [v, setV] = useState({ vehicleType: 'car', connectorTypes: ['Type2'] });
+  const [pnc, setPnc] = useState(null);
   const add = async () => {
     await api('/api/me/vehicles', { method: 'POST', auth: 'driver', body: { ...v, batteryKwh: v.batteryKwh ? Number(v.batteryKwh) : undefined } });
     setV({ vehicleType: 'car', connectorTypes: ['Type2'] });
@@ -113,9 +115,19 @@ function VehiclesModal({ open, onClose, user, reload }) {
     <Modal open={open} onClose={onClose} title="Vehicles">
       <div className="space-y-2">
         {user.vehicles?.map((x) => (
-          <div key={x._id} className="flex items-center justify-between rounded-xl bg-ink-50 p-3 text-sm dark:bg-ink-800">
-            <span><b>{x.label || x.model}</b> · {x.vehicleType} · {x.batteryKwh ? `${x.batteryKwh} kWh` : ''}</span>
-            <ActionButton className="btn-ghost btn-sm" onClick={async () => { await api(`/api/me/vehicles/${x._id}`, { method: 'DELETE', auth: 'driver' }); reload({ quiet: true }); }}>Remove</ActionButton>
+          <div key={x._id} className="space-y-2 rounded-xl bg-ink-50 p-3 text-sm dark:bg-ink-800">
+            <div className="flex items-center justify-between">
+              <span><b>{x.label || x.model}</b> · {x.vehicleType} · {x.batteryKwh ? `${x.batteryKwh} kWh` : ''}</span>
+              <ActionButton className="btn-ghost btn-sm" onClick={async () => { await api(`/api/me/vehicles/${x._id}`, { method: 'DELETE', auth: 'driver' }); reload({ quiet: true }); }}>Remove</ActionButton>
+            </div>
+            {x.pnc?.emaid && !x.pnc.revokedAt ? (
+              <div className="flex items-center justify-between text-xs">
+                <span>Plug & Charge on · eMAID <span className="font-mono">{x.pnc.emaid}</span></span>
+                <ActionButton className="btn-ghost btn-sm" confirm="Turn off Plug & Charge? The contract certificate is revoked." onClick={async () => { await api(`/api/me/vehicles/${x._id}/pnc`, { method: 'DELETE', auth: 'driver' }); reload({ quiet: true }); }}>Turn off</ActionButton>
+              </div>
+            ) : (
+              <ActionButton className="btn-secondary btn-sm" onClick={async () => { const r = await api(`/api/me/vehicles/${x._id}/pnc`, { method: 'POST', auth: 'driver' }); setPnc(r); reload({ quiet: true }); }}>Enable Plug & Charge (ISO 15118)</ActionButton>
+            )}
           </div>
         ))}
         <div className="grid grid-cols-2 gap-2 pt-2">
@@ -125,6 +137,15 @@ function VehiclesModal({ open, onClose, user, reload }) {
           <select className="input" value={v.connectorTypes[0]} onChange={(e) => setV({ ...v, connectorTypes: [e.target.value] })}>{Object.entries(CONNECTOR_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </div>
         <ActionButton className="btn-primary w-full" onClick={add}>Add vehicle</ActionButton>
+        {pnc && (
+          <div className="space-y-1 rounded-xl border border-brand-300 p-3 text-xs">
+            <div className="font-semibold">Plug & Charge contract issued: <span className="font-mono">{pnc.emaid}</span></div>
+            <p className="muted">{pnc.note} Billing uses your UPI Autopay / fleet account after each session.</p>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => { const blob = new Blob([`${pnc.certificateChain}
+${pnc.privateKey}`], { type: 'application/x-pem-file' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${pnc.emaid}.pem`; a.click(); }}>Download contract certificate</button>
+          </div>
+        )}
+        <p className="text-xs muted">Plug & Charge needs a car that supports ISO 15118 and UPI Autopay or a fleet account: plug in and charging starts by itself.</p>
       </div>
     </Modal>
   );

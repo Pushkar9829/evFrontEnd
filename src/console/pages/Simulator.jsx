@@ -19,6 +19,7 @@ export default function SimulatorPage() {
   const toast = useToast();
   const { data, error, reload } = useApi('/api/cms/simulator');
   const [sel, setSel] = useState(null);
+  const [emaid, setEmaid] = useState('');
   const sim = useApi(sel ? `/api/cms/simulator/${sel}` : null);
   useInterval(() => { if (sel) sim.reload({ quiet: true }); }, 1500);
   const act = async (action, args = {}) => {
@@ -49,11 +50,13 @@ export default function SimulatorPage() {
           {!sel ? <Card><Empty icon="cpu" title="Pick a charger">Start a virtual charger, then plug in and pay from the driver page to run the full journey.</Empty></Card> : (
             <>
               <Card className="flex flex-wrap items-center gap-2 p-4">
-                <div className="mr-auto"><div className="font-mono font-semibold">{charger?.ocppId}</div><div className="text-xs muted">{running ? `${st.online ? 'Connected' : 'Disconnected'} · ${st.protocol} · queued ${st.queued} · firmware ${st.firmware}` : 'Not running'}</div></div>
+                <div className="mr-auto"><div className="font-mono font-semibold">{charger?.ocppId}</div><div className="text-xs muted">{running ? `${st.online ? 'Connected' : 'Disconnected'} · ${st.protocol} · ${st.hasClientCert ? 'client certificate held' : 'password auth'} · queued ${st.queued} · firmware ${st.firmware}` : 'Not running'}</div></div>
                 {!running ? <ActionButton onClick={async () => { await api(`/api/cms/simulator/${sel}/start`, { method: 'POST', body: { force: charger?.online && !charger?.isSimulated } }); reload({ quiet: true }); sim.reload(); }}>Start simulator</ActionButton> : (
                   <>
                     <ActionButton className="btn-secondary" onClick={() => act('meter_now')}>Send meter tick</ActionButton>
                     {st.online ? <ActionButton className="btn-secondary" onClick={() => act('drop', { forMs: 15000 })}>Drop connection 15 s</ActionButton> : <ActionButton className="btn-secondary" onClick={() => act('reconnect')}>Reconnect</ActionButton>}
+                    <ActionButton className="btn-ghost" onClick={() => act('request_certificate')}>Send CSR</ActionButton>
+                    {st.hasClientCert && <ActionButton className="btn-ghost" onClick={() => act('reconnect_tls')}>Reconnect over mutual TLS</ActionButton>}
                     <ActionButton className="btn-ghost" onClick={async () => { await api(`/api/cms/simulator/${sel}/stop`, { method: 'POST' }); reload({ quiet: true }); sim.reload(); }}>Stop simulator</ActionButton>
                   </>
                 )}
@@ -64,7 +67,7 @@ export default function SimulatorPage() {
                     {st.connectors.map((c) => (
                       <Card key={c.number} className="space-y-3 p-4">
                         <div className="flex items-center justify-between"><div className="font-semibold">Connector {c.number} · {c.maxPowerKw} kW</div><Status value={c.faulted ? 'Faulted' : c.tx ? 'Charging' : c.plugged ? 'Occupied' : 'Available'} /></div>
-                        <div className="text-xs muted">Meter {(c.meterWh / 1000).toFixed(3)} kWh{c.tx ? ` · tx ${c.tx.id}` : ''}{c.pendingStart ? ' · start pending (waiting for cable)' : ''}</div>
+                        <div className="text-xs muted">Meter {(c.meterWh / 1000).toFixed(3)} kWh{c.exportWh ? ` · exported ${(c.exportWh / 1000).toFixed(3)} kWh` : ''}{c.dischargeKw ? ` · discharging ${c.dischargeKw} kW (V2G)` : ''}{c.tx ? ` · tx ${c.tx.id}` : ''}{c.pendingStart ? ' · start pending (waiting for cable)' : ''}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {!c.plugged ? <ActionButton className="btn-primary btn-sm" onClick={() => act('plug', { connector: c.number })}>Plug in</ActionButton> : <ActionButton className="btn-secondary btn-sm" onClick={() => act('unplug', { connector: c.number })}>Unplug</ActionButton>}
                           <ActionButton className="btn-secondary btn-sm" onClick={() => act('emergency_stop', { connector: c.number })}>Emergency stop</ActionButton>
@@ -74,6 +77,12 @@ export default function SimulatorPage() {
                           <ActionButton className="btn-ghost btn-sm" onClick={() => act('meter_jump', { connector: c.number })}>Next meter jump</ActionButton>
                           <ActionButton className="btn-ghost btn-sm" onClick={() => act('meter_reset', { connector: c.number })}>Register reset</ActionButton>
                         </div>
+                        {st.protocol !== 'ocpp1.6' && !c.plugged && (
+                          <div className="flex gap-1.5">
+                            <input className="input min-h-[34px] py-1 text-xs" placeholder="Car's eMAID e.g. IN-CHX-C1A2B3C4D" value={emaid} onChange={(e) => setEmaid(e.target.value.trim())} />
+                            <ActionButton className="btn-secondary btn-sm whitespace-nowrap" disabled={!emaid} onClick={async () => { const r = await api(`/api/cms/simulator/${sel}/action`, { method: 'POST', body: { action: 'pnc_plug', args: { connector: c.number, emaid } } }); toast(`Plug & Charge: ${r.status} (certificate ${r.certificateStatus})`, r.status === 'Accepted' ? 'green' : 'red'); sim.reload({ quiet: true }); }}>Plug & Charge</ActionButton>
+                          </div>
+                        )}
                         <Link className="block text-xs font-semibold text-brand-700" to={`/c/${encodeURIComponent(charger.ocppId)}/${c.number}`} target="_blank">Open driver QR page for this connector ↗</Link>
                       </Card>
                     ))}

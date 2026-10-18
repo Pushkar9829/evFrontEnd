@@ -14,6 +14,8 @@ const Account = lazy(() => import('./driver/Account.jsx'));
 const History = lazy(() => import('./driver/History.jsx'));
 const HostMode = lazy(() => import('./driver/HostMode.jsx'));
 const FleetPage = lazy(() => import('./driver/Fleet.jsx'));
+const RoutePlanner = lazy(() => import('./driver/RoutePlanner.jsx'));
+const Privacy = lazy(() => import('./driver/Privacy.jsx'));
 const Console = lazy(() => import('./console/Console.jsx'));
 const StaffLogin = lazy(() => import('./console/StaffLogin.jsx'));
 
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/host" element={<HostMode />} />
           <Route path="/fleet" element={<FleetPage />} />
+          <Route path="/route" element={<RoutePlanner />} />
+          <Route path="/privacy" element={<Privacy />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

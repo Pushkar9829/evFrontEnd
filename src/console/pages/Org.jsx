@@ -19,7 +19,7 @@ export function StaffPage() {
         { key: 'n', label: 'Name', render: (u) => <div><div className="font-medium">{u.name}</div><div className="text-xs muted">{u.email}</div></div> },
         { key: 'r', label: 'Role', render: (u) => (
           <select className="input min-h-[34px] w-auto py-1 text-xs" value={u.membership?.role} onChange={async (e) => { try { await api(`/api/cms/staff/${u._id}`, { method: 'PATCH', body: { role: e.target.value } }); reload({ quiet: true }); } catch (x) { alert(x.message); } }}>
-            {data.roles.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
+            {(data.roleOptions || data.roles.map((r) => ({ value: r, label: titleCase(r) }))).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         ) },
         { key: '2', label: '2FA', render: (u) => (u.twoFactorEnabled ? <Badge tone="green">On</Badge> : <Badge>Off</Badge>) },
@@ -32,7 +32,7 @@ export function StaffPage() {
           <Field label="Email"><input className="input" type="email" onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
           <Field label="Mobile (for 2FA)"><input className="input" onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
           <Field label="Temporary password"><input className="input" type="password" onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
-          <Field label="Role"><select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{data?.roles.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}</select></Field>
+          <Field label="Role"><select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{(data?.roleOptions || []).map((r) => <option key={r.value} value={r.value}>{r.label}{r.custom ? ' (custom)' : ''}</option>)}</select></Field>
           {f.role === 'site_host' && <Field label="Site"><select className="input" onChange={(e) => setF({ ...f, siteIds: [e.target.value] })}><option>Choose</option>{sites.data?.sites?.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}</select></Field>}
         </div>
         <ErrorBox error={err} />

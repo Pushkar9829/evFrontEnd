@@ -4,7 +4,7 @@ import { store } from './api.js';
 // All driver-facing strings are externalised; English + Hindi at launch (UX 1.5).
 const STRINGS = {
   en: {
-    appName: 'ChargeX', find: 'Find', history: 'History', account: 'Account', login: 'Log in', logout: 'Log out',
+    appName: 'ChargeX', find: 'Find', trip: 'Trip', history: 'History', account: 'Account', login: 'Log in', logout: 'Log out',
     searchPlaceholder: 'Search area, mall or city', availableNow: 'Available now', allChargers: 'Show all',
     directions: 'Directions', startCharging: 'Start charging', chooseAmount: 'Choose an amount', custom: 'Custom',
     phoneForReceipt: 'Phone number (for receipt and session link)', payUpi: 'Pay with UPI', prepaidNote: 'prepaid, unused amount refunded automatically',
@@ -17,7 +17,7 @@ const STRINGS = {
     noChargers: 'No chargers nearby', widen: 'Widen search', howToReach: 'How to reach', price: 'Price', perKwh: '/kWh', sessionFee: 'session fee',
   },
   hi: {
-    appName: 'ChargeX', find: 'खोजें', history: 'इतिहास', account: 'खाता', login: 'लॉग इन', logout: 'लॉग आउट',
+    appName: 'ChargeX', find: 'खोजें', trip: 'यात्रा', history: 'इतिहास', account: 'खाता', login: 'लॉग इन', logout: 'लॉग आउट',
     searchPlaceholder: 'इलाका, मॉल या शहर खोजें', availableNow: 'अभी उपलब्ध', allChargers: 'सभी दिखाएँ',
     directions: 'रास्ता', startCharging: 'चार्जिंग शुरू करें', chooseAmount: 'राशि चुनें', custom: 'अपनी राशि',
     phoneForReceipt: 'फ़ोन नंबर (रसीद और लिंक के लिए)', payUpi: 'UPI से भुगतान करें', prepaidNote: 'अग्रिम, बची राशि अपने-आप वापस',

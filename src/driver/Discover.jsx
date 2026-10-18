@@ -167,7 +167,7 @@ export default function Discover() {
           )}
         </div>
       )}
-      <div className="pt-4 text-center text-xs muted">Scan the QR on any ChargeX charger to pay by UPI — no app or account needed.</div>
+      <div className="pt-4 text-center text-xs muted">Scan the QR on any ChargeX charger to pay by UPI — no app or account needed. · <Link to="/privacy" className="underline">Your data</Link></div>
     </div>
   );
 }

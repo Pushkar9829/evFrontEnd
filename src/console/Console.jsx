@@ -10,7 +10,8 @@ import { SessionsPage, SessionDetailPage, CustomersPage, ComplaintsPage } from '
 import { TariffsPage, FinancePage, PromosPage } from './pages/Money.jsx';
 import { StaffPage, AlertsPage, ApprovalsPage, AuditPage, CompanyPage, ReportsPage, RoamingPage } from './pages/Org.jsx';
 import SimulatorPage from './pages/Simulator.jsx';
-import { TenantsPage, HealthPage, PlatformMoneyPage, SwitchesPage, ModelsPage, PartnersPage, ContentPage, SecurityPage } from './pages/Platform.jsx';
+import AccessPage from './pages/Access.jsx';
+import { TenantsPage, HealthPage, PlatformMoneyPage, SwitchesPage, ModelsPage, PartnersPage, ContentPage, SecurityPage, DataRequestsPage } from './pages/Platform.jsx';
 
 const Ctx = createContext(null);
 export const useConsole = () => useContext(Ctx);
@@ -35,6 +36,7 @@ const NAV = [
   { to: 'roaming', label: 'Roaming', icon: 'globe', perm: 'roaming.view' },
   { to: 'staff', label: 'Staff & roles', icon: 'users', perm: 'staff.manage', tenantOnly: true },
   { to: 'company', label: 'Company & branding', icon: 'cog', perm: 'branding.manage', tenantOnly: true },
+  { to: 'access', label: 'Roles & API keys', icon: 'shield', perm: 'staff.manage', tenantOnly: true },
   { to: 'audit', label: 'Audit log', icon: 'shield', perm: 'audit.view' },
   { group: 'Platform', platform: true },
   { to: 'p/tenants', label: 'Tenants', icon: 'layers', perm: 'tenant.view_all', platform: true },
@@ -45,6 +47,7 @@ const NAV = [
   { to: 'p/partners', label: 'Roaming partners', icon: 'globe', perm: 'roaming.view', platform: true },
   { to: 'p/content', label: 'Content & templates', icon: 'doc', perm: 'content.manage', platform: true },
   { to: 'p/security', label: 'Security events', icon: 'shield', perm: 'audit.view', platform: true },
+  { to: 'p/privacy', label: 'Data requests', icon: 'doc', perm: 'tenant.view_all', platform: true },
 ];
 
 function Workspace({ me }) {
@@ -96,7 +99,7 @@ export default function Console() {
         <aside className={cx('fixed inset-y-0 left-0 z-[900] w-64 shrink-0 overflow-y-auto border-r border-ink-200 bg-white p-3 transition-transform dark:border-ink-800 dark:bg-ink-900 lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
           <div className="mb-4 flex items-center gap-2 px-2 pt-1">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" className="h-5 w-5" /></span>
-            <div className="min-w-0"><div className="truncate text-sm font-bold">{ctxLabel}</div><div className="truncate text-xs muted">{titleCase(me.ctx.role)}</div></div>
+            <div className="min-w-0"><div className="truncate text-sm font-bold">{ctxLabel}</div><div className="truncate text-xs muted">{me.contexts.find((c) => c.role === me.ctx.role && c.tenant === me.ctx.tenant)?.roleName || titleCase(me.ctx.role)}</div></div>
           </div>
           <nav className="space-y-0.5">
             {items.map((n) => (n.group ? <div key={n.group} className="px-2 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider muted">{n.group}</div> : (
@@ -135,6 +138,7 @@ export default function Console() {
               <Route path="roaming" element={<RoamingPage />} />
               <Route path="staff" element={<StaffPage />} />
               <Route path="company" element={<CompanyPage />} />
+              <Route path="access" element={<AccessPage />} />
               <Route path="audit" element={<AuditPage />} />
               <Route path="p/tenants" element={<TenantsPage />} />
               <Route path="p/health" element={<HealthPage />} />
@@ -144,6 +148,7 @@ export default function Console() {
               <Route path="p/partners" element={<PartnersPage />} />
               <Route path="p/content" element={<ContentPage />} />
               <Route path="p/security" element={<SecurityPage />} />
+              <Route path="p/privacy" element={<DataRequestsPage />} />
               <Route path="*" element={<Navigate to="/console" replace />} />
             </Routes>
           </main>

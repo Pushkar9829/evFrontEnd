@@ -106,6 +106,8 @@ export function HealthPage() {
           <Stat label="Queues" value={data.queues.refunds} sub={`refunds · finance queue ${data.queues.financeQueue} · CDRs ${data.queues.cdrs} · alerts ${data.queues.openAlerts}`} icon="list" />
           <Stat label="Switches" value={data.switches.pauseNewPayments ? 'Payments paused' : 'Normal'} sub={`${data.switches.gatewayDown ? 'gateway down · ' : ''}${data.switches.maintenance ? 'maintenance banner on' : ''}`} icon="cog" />
           <Stat label="API process" value={`${data.process.memoryMb} MB`} sub={`${data.process.node} · up ${Math.round(data.gateway.uptimeSec / 60)} min`} icon="chart" />
+          <Stat label="Providers" value={Object.values(data.providers || {}).every((v) => v === 'mock') ? 'All mock' : 'Live'} sub={Object.entries(data.providers || {}).map(([k, v]) => `${k}: ${v}`).join(' · ')} icon="bell" />
+          <Stat label="Cluster" value={data.cluster?.enabled ? 'Redis' : 'Single node'} sub={`${data.cluster?.nodeId}${data.cluster?.leader ? ' · leader' : ''} · Profile 3 listener ${data.tls?.profile3Listener ? 'on' : 'off'} · CCP ${data.tls?.ccp ? 'on' : 'off'}`} icon="layers" />
         </div>
       )}
       <Card className="mt-4 p-4">
@@ -354,6 +356,47 @@ export function SecurityPage() {
         <select className="input min-h-[36px] w-auto py-1 text-sm" value={type} onChange={(e) => setType(e.target.value)}><option value="">All</option>{['cross_tenant_access', 'permission_denied', 'webhook_rejected', 'ocpp_auth_failed', 'staff_login_failed', 'payment_amount_mismatch', 'ocpi_bad_token', 'uei_bad_signature'].map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}</select>
       </PageHeader>
       <Card>{!data ? <Loading /> : <Table rows={data.events} columns={[{ key: 'w', label: 'When', render: (e) => dt(e.at) }, { key: 't', label: 'Type', render: (e) => <Badge tone="red">{e.type}</Badge> }, { key: 'd', label: 'Details', render: (e) => <span className="font-mono text-xs">{JSON.stringify(e.details)}</span> }, { key: 'i', label: 'IP', render: (e) => <span className="font-mono text-xs">{e.ip}</span> }]} />}</Card>
+    </>
+  );
+}
+
+export function DataRequestsPage() {
+  const toast = useToast();
+  const [status, setStatus] = useState('received,in_progress');
+  const { data, reload } = useApi(`/api/admin/data-requests?status=${status}`);
+  const [act, setAct] = useState(null);
+  return (
+    <>
+      <PageHeader title="Data requests" sub="DPDP data-rights requests: export or deletion, tracked to completion (30-day target)">
+        <select className="input min-h-[36px] w-auto py-1 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}><option value="received,in_progress">Open</option><option value="completed,rejected">Closed</option><option value="received,in_progress,completed,rejected">All</option></select>
+      </PageHeader>
+      <Card>{!data ? <Loading /> : <Table rows={data.requests} empty="No requests" columns={[
+        { key: 'w', label: 'Received', render: (r) => dt(r.createdAt) },
+        { key: 'k', label: 'Type', render: (r) => <Badge tone={r.kind === 'delete' ? 'red' : 'blue'}>{r.kind}</Badge> },
+        { key: 'p', label: 'Person', render: (r) => (r.user ? `${r.user.name || 'Driver'} · ${r.phone || ''}` : `Guest · ${r.phone || '—'}`) },
+        { key: 'src', label: 'Source', render: (r) => titleCase(r.source) },
+        { key: 'd', label: 'Due', render: (r) => (r.overdue ? <Badge tone="red">Overdue · {dt(r.dueAt)}</Badge> : dt(r.dueAt)) },
+        { key: 's', label: 'Status', render: (r) => <Status value={r.status === 'received' ? 'pending' : r.status === 'completed' ? 'executed' : r.status} label={titleCase(r.status)} /> },
+        { key: 'x', label: '', render: (r) => ['received', 'in_progress'].includes(r.status) && <div className="flex gap-1">{r.status === 'received' && <button type="button" className="btn-ghost btn-sm" onClick={() => setAct({ r, kind: 'in_progress' })}>Start</button>}<button type="button" className="btn-primary btn-sm" onClick={() => setAct({ r, kind: 'execute' })}>{r.kind === 'delete' ? 'Delete data' : 'Export'}</button><button type="button" className="btn-ghost btn-sm" onClick={() => setAct({ r, kind: 'rejected' })}>Reject</button></div> },
+      ]} />}</Card>
+      <ReasonModal open={!!act} danger={act?.kind === 'execute' && act?.r.kind === 'delete'} title={act ? (act.kind === 'execute' ? (act.r.kind === 'delete' ? 'Delete personal data' : 'Export personal data') : act.kind === 'rejected' ? 'Reject request' : 'Start working on request') : ''} onClose={() => setAct(null)} onSubmit={async (note) => {
+        if (act.kind === 'execute') {
+          const r = await api(`/api/admin/data-requests/${act.r._id}/execute`, { method: 'POST', body: { note } });
+          if (r.data) {
+            const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `data-export-${act.r._id}.json`;
+            a.click();
+          }
+          toast('Request completed');
+        } else {
+          await api(`/api/admin/data-requests/${act.r._id}`, { method: 'POST', body: { status: act.kind, note } });
+        }
+        reload({ quiet: true });
+      }}>
+        {act?.kind === 'execute' && act.r.kind === 'delete' && <p className="text-sm muted">Name and phone are removed from the profile, sessions, complaints and notifications. Invoices are kept for the legal tax period without identity. This cannot be undone.</p>}
+      </ReasonModal>
     </>
   );
 }

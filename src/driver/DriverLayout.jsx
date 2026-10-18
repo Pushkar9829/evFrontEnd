@@ -19,6 +19,7 @@ export default function DriverLayout() {
   const bare = loc.pathname.startsWith('/c/') || loc.pathname.startsWith('/s/');
   const nav = [
     { to: '/', icon: 'map', label: t('find'), end: true },
+    { to: '/route', icon: 'car', label: t('trip') },
     { to: '/history', icon: 'clock', label: t('history') },
     { to: '/account', icon: 'user', label: t('account') },
   ];
@@ -42,7 +43,7 @@ export default function DriverLayout() {
       </main>
       {!bare && (
         <nav className="fixed inset-x-0 bottom-0 z-[500] border-t border-ink-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-ink-800 dark:bg-ink-950/95">
-          <div className="mx-auto grid max-w-3xl grid-cols-3">
+          <div className="mx-auto grid max-w-3xl grid-cols-4">
             {nav.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-medium', isActive ? 'text-brand-600' : 'muted')}>
                 <Icon name={n.icon} className="h-5 w-5" />{n.label}
