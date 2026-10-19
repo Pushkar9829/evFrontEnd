@@ -1,0 +1,10 @@
+{
+  "name": "ChargeX — EV charging",
+  "short_name": "ChargeX",
+  "description": "Find a charger, scan, pay by UPI and charge.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#059669",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

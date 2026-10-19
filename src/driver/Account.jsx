@@ -4,15 +4,17 @@ import { api, download, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
 import { tx, useI18n } from '../lib/i18n.jsx';
 import { dateOnly, rs } from '../lib/format.js';
-import { ActionButton, Card, Empty, ErrorBox, Field, Icon, Loading, Modal, Status, useToast } from '../components/ui.jsx';
+import { ActionButton, Card, Empty, ErrorBox, Field, Icon, IconBubble, Loading, Modal, Status, useToast } from '../components/ui.jsx';
 import { CONNECTOR_LABEL } from './ChargerBits.jsx';
 
-function Row({ icon, title, sub, to, onClick }) {
+const ROW_TONE = { user: 'blue', car: 'cyan', money: 'green', doc: 'violet', alert: 'amber', heart: 'red', bell: 'orange', tag: 'blue', cog: 'gray', home: 'green', users: 'violet', globe: 'cyan' };
+
+function Row({ icon, title, sub, to, onClick, tone }) {
   const inner = (
-    <div className="flex items-center gap-3 p-4">
-      <div className="grid h-9 w-9 place-items-center rounded-xl bg-ink-100 dark:bg-ink-800"><Icon name={icon} className="h-4 w-4" /></div>
-      <div className="flex-1"><div className="text-sm font-semibold">{title}</div>{sub && <div className="text-xs muted">{sub}</div>}</div>
-      <Icon name="chev" className="h-4 w-4 text-ink-400" />
+    <div className="flex items-center gap-3 px-4 py-3 transition hover:bg-ink-50 dark:hover:bg-ink-800/50">
+      <IconBubble name={icon} tone={tone || ROW_TONE[icon] || 'gray'} size="sm" />
+      <div className="min-w-0 flex-1"><div className="text-sm font-semibold">{title}</div>{sub && <div className="truncate text-xs muted">{sub}</div>}</div>
+      <Icon name="chev" className="h-4 w-4 shrink-0 text-ink-400" />
     </div>
   );
   return to ? <Link to={to} className="block">{inner}</Link> : <button type="button" onClick={onClick} className="block w-full text-left">{inner}</button>;
@@ -45,11 +47,19 @@ export default function Account() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center gap-3">
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-brand-100 text-xl font-bold text-brand-700 dark:bg-brand-950">{(u.name || u.phone || '?')[0]}</div>
-        <div><div className="text-lg font-bold">{u.name || 'Driver'}</div><div className="text-sm muted">+91 {u.phone}</div></div>
+      <div className="relative overflow-hidden rounded-3xl bg-electric p-5 text-white shadow-glow">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
+        <div className="relative flex items-center gap-3">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 text-2xl font-extrabold uppercase backdrop-blur">{(u.name || u.phone || '?')[0]}</div>
+          <div className="min-w-0"><div className="truncate text-lg font-extrabold">{u.name || tx('Driver')}</div><div className="text-sm text-white/85">+91 {u.phone}</div></div>
+        </div>
+        <div className="relative mt-4 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold">{u.vehicles?.length || 0}</div><div className="text-[10px] text-white/80">{tx('Vehicles')}</div></div>
+          <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold">{u.favourites?.length || 0}</div><div className="text-[10px] text-white/80">{tx('Favourites')}</div></div>
+          <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold">{invoices.data?.invoices?.length || 0}</div><div className="text-[10px] text-white/80">{tx('Invoices')}</div></div>
+        </div>
       </div>
-      <Card className="divide-y divide-ink-100 dark:divide-ink-800">
+      <Card className="divide-y divide-ink-100 overflow-hidden dark:divide-ink-800">
         <Row icon="user" title={tx("Profile & GSTIN")} sub={u.gstin ? `GSTIN ${u.gstin}` : 'Add GSTIN for business invoices'} onClick={() => setPanel('profile')} />
         <Row icon="car" title={tx("Vehicles")} sub={u.vehicles?.length ? u.vehicles.map((v) => v.label || v.model).join(', ') : 'Add your vehicle for smart suggestions'} onClick={() => setPanel('vehicles')} />
         <Row icon="money" title={tx("Payments")} sub={u.autopay?.status === 'active' ? `UPI Autopay on (up to ${rs(u.autopay.maxPaise, { decimals: 0 })})` : 'Saved methods, UPI Autopay'} onClick={() => setPanel('payments')} />
@@ -61,7 +71,7 @@ export default function Account() {
         <Row icon="cog" title={tx("Notifications")} sub="Push, SMS, WhatsApp, email" onClick={() => setPanel('notifications')} />
         <Row icon="doc" title={tx("Download my data")} sub="Everything we hold about you (JSON)" onClick={() => download('/api/me/data-export', 'chargex-my-data.json', { auth: 'driver' }).catch((e) => toast(e.message, 'red'))} />
       </Card>
-      <Card className="divide-y divide-ink-100 dark:divide-ink-800">
+      <Card className="divide-y divide-ink-100 overflow-hidden dark:divide-ink-800">
         <Row icon="home" title={tx("Host mode")} sub={u.hostTenant ? 'Your charger, price and earnings' : 'Share your charger and earn'} to="/host" />
         <Row icon="users" title={tx("Fleet")} sub={u.fleet ? 'Your fleet account' : 'Manage company drivers and one monthly invoice'} to="/fleet" />
         <Row icon="globe" title={lang === 'en' ? 'भाषा: हिंदी' : 'Language: English'} sub="English / हिंदी" onClick={() => { setLang(lang === 'en' ? 'hi' : 'en'); save({ language: lang === 'en' ? 'hi' : 'en' }); }} />

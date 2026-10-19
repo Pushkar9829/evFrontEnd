@@ -37,11 +37,21 @@ export default function StaffLogin() {
     }
   };
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-ink-900 via-ink-900 to-brand-950 p-4">
-      <Card className="w-full max-w-sm p-6">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-night p-4">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-brand-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+      <div className="relative grid w-full max-w-4xl items-center gap-10 lg:grid-cols-2">
+      <div className="hidden text-white lg:block">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-electric shadow-glow"><Icon name="bolt" className="h-7 w-7" strokeWidth={2.5} /></span>
+        <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight">Run your charging network<br /><span className="bg-gradient-to-r from-brand-300 to-cyan-300 bg-clip-text text-transparent">from one console.</span></h1>
+        <ul className="mt-6 space-y-3 text-sm text-ink-300">
+          {['Live map of every charger and session', 'Tariffs, payouts and GST invoices', 'Roles, approvals and a full audit trail', 'OCPP 1.6J, 2.0.1 and 2.1 chargers'].map((x) => <li key={x} className="flex items-center gap-2"><Icon name="check" className="h-4 w-4 text-brand-400" />{x}</li>)}
+        </ul>
+      </div>
+      <Card className="mx-auto w-full max-w-sm p-6 shadow-lift">
         <div className="mb-5 flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" /></span>
-          <div><div className="font-bold">ChargeX Console</div><div className="text-xs muted">Operators and platform team</div></div>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-electric text-white shadow-glow"><Icon name="bolt" /></span>
+          <div><div className="font-extrabold">ChargeX Console</div><div className="text-xs muted">Operators and platform team</div></div>
         </div>
         <form className="space-y-3" onSubmit={submit}>
           {!challenge ? (
@@ -56,7 +66,7 @@ export default function StaffLogin() {
             </>
           )}
           <ErrorBox error={err} />
-          <button type="submit" className="btn-primary w-full" disabled={busy}>{busy && <Spinner className="h-4 w-4 text-white" />}{challenge ? 'Verify' : 'Sign in'}</button>
+          <button type="submit" className="btn-electric btn-lg w-full" disabled={busy}>{busy && <Spinner className="h-4 w-4 text-white" />}{challenge ? 'Verify' : 'Sign in'}</button>
         </form>
         {cfg?.demoOtp && <details className="mt-5 text-xs muted">
           <summary className="cursor-pointer">Demo accounts</summary>
@@ -68,6 +78,7 @@ export default function StaffLogin() {
           </div>
         </details>}
       </Card>
+      </div>
     </div>
   );
 }

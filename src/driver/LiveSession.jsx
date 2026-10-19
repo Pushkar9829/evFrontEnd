@@ -4,8 +4,9 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { API_URL, api, download, tokens } from '../lib/api.js';
 import { tx, txKey, useI18n } from '../lib/i18n.jsx';
 import { useNow } from '../lib/hooks.js';
+import { useTemporaryBrand } from '../lib/brand.jsx';
 import { duration, kw, rs, rs0, dt } from '../lib/format.js';
-import { ActionButton, Card, ErrorBox, Field, Icon, Loading, Modal, Spinner, Status, cx, useToast } from '../components/ui.jsx';
+import { ActionButton, Card, ErrorBox, Field, Icon, Loading, Modal, ProgressRing, Spinner, Status, cx, useToast } from '../components/ui.jsx';
 
 const ACTIVE = ['CREATED', 'PAID', 'STARTING', 'CHARGING', 'STOPPING', 'INTERRUPTED'];
 
@@ -44,12 +45,22 @@ function PlugAnimation() {
 }
 
 const Big = ({ label, value, sub }) => (
-  <div className="rounded-2xl bg-ink-50 p-3 dark:bg-ink-800">
-    <div className="text-xs font-medium uppercase muted">{label}</div>
-    <div className="text-2xl font-bold tabular-nums">{value}</div>
-    {sub && <div className="text-xs muted">{sub}</div>}
+  <div className="rounded-2xl bg-ink-50 p-3 text-center dark:bg-ink-800">
+    <div className="text-[10px] font-bold uppercase tracking-wider muted">{label}</div>
+    <div className="mt-0.5 text-lg font-extrabold tabular-nums">{value}</div>
+    {sub && <div className="text-[10px] muted">{sub}</div>}
   </div>
 );
+
+function shareReceipt(s) {
+  const lines = [
+    `⚡ ${tx('Charged at')} ${s.charger?.site?.name || ''}`,
+    `${((s.energyWh || 0) / 1000).toFixed(2)} kWh · ${duration(s.startedAt, s.endedAt)}`,
+    `${tx('Total')}: ${rs(s.costs?.totalPaise)}${s.refundPaise > 0 ? ` · ${tx('Refund')} ${rs(s.refundPaise)}` : ''}`,
+    s.invoice?.number ? `${tx('Invoice')} ${s.invoice.number}` : '',
+  ].filter(Boolean);
+  window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank', 'noopener');
+}
 
 function Rating({ s, sessionId }) {
   const [stars, setStars] = useState(s.rating?.stars || 0);
@@ -148,6 +159,7 @@ export default function LiveSession() {
   const [complaint, setComplaint] = useState(false);
   const [otpStop, setOtpStop] = useState(false);
   const verified = useRef(false);
+  useTemporaryBrand(s?.branding);
 
   // A view token can arrive in the SMS link (?v=...)
   if (sp.get('v') && !tokens.view(id)) tokens.setView(id, sp.get('v'));
@@ -254,18 +266,21 @@ export default function LiveSession() {
 
       {['CHARGING', 'STOPPING', 'INTERRUPTED'].includes(s.state) && (
         <Card className="space-y-4 p-5">
-          <div className="grid grid-cols-2 gap-3">
-            <Big label={t('energy')} value={`${((s.energyWh || 0) / 1000).toFixed(2)}`} sub="kWh" />
-            <Big label={t('cost')} value={rs(used)} sub={s.capPaise ? `of ${rs0(s.capPaise)} limit` : undefined} />
-            <Big label={t('elapsed')} value={duration(s.startedAt, now)} />
-            <Big label={s.live?.socPct !== undefined ? t('battery') : t('power')} value={s.live?.socPct !== undefined ? `${Math.round(s.live.socPct)}%` : kw(s.live?.powerW)} />
+          <div className="flex flex-col items-center">
+            <ProgressRing value={s.live?.socPct !== undefined ? s.live.socPct : pct} size={220} tone={s.live?.socPct === undefined && pct >= 80 ? 'amber' : 'brand'}>
+              <div>
+                <div className={cx('mx-auto mb-1 grid h-8 w-8 place-items-center rounded-full', s.state === 'CHARGING' ? 'bg-brand-100 text-brand-600 dark:bg-brand-950' : 'bg-amber-100 text-amber-600 dark:bg-amber-950')}><Icon name={s.live?.socPct !== undefined ? 'battery' : 'bolt'} className={cx('h-4 w-4', s.state === 'CHARGING' && 'animate-pulse')} /></div>
+                <div className="text-4xl font-black tabular-nums">{s.live?.socPct !== undefined ? `${Math.round(s.live.socPct)}%` : ((s.energyWh || 0) / 1000).toFixed(2)}</div>
+                <div className="text-xs font-semibold muted">{s.live?.socPct !== undefined ? t('battery') : 'kWh'}</div>
+              </div>
+            </ProgressRing>
+            {s.capPaise > 0 && <div className={cx('mt-2 text-xs font-semibold', pct >= 80 ? 'text-amber-600' : 'muted')}>{tx('{{pct}}% of your amount used', { pct })}{pct >= 80 ? ` · ${tx('80% used')}` : ''}</div>}
           </div>
-          {s.capPaise > 0 && (
-            <div>
-              <div className="h-3 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800"><div className={cx('h-full rounded-full transition-all', pct >= 80 ? 'bg-amber-500' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></div>
-              <div className="mt-1 flex justify-between text-xs muted"><span>{pct}% of your amount used</span>{pct >= 80 && <span className="font-semibold text-amber-600">{tx("80% used")}</span>}</div>
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-2">
+            <Big label={t('cost')} value={rs(used)} sub={s.capPaise ? `/ ${rs0(s.capPaise)}` : undefined} />
+            <Big label={s.live?.socPct !== undefined ? t('energy') : t('power')} value={s.live?.socPct !== undefined ? ((s.energyWh || 0) / 1000).toFixed(2) : kw(s.live?.powerW)} sub={s.live?.socPct !== undefined ? 'kWh' : undefined} />
+            <Big label={t('elapsed')} value={duration(s.startedAt, now)} />
+          </div>
           {stale && <div className="text-xs text-amber-600">{tx("Waiting for update from the charger…")}</div>}
           {owner ? (
             <button type="button" className="btn-danger btn-lg w-full" disabled={s.state === 'STOPPING'} onClick={() => setConfirmStop(true)}>
@@ -279,13 +294,21 @@ export default function LiveSession() {
       )}
 
       {['BILLED', 'COMPLETED'].includes(s.state) && (
-        <Card className="space-y-4 p-5">
-          <div className="text-center">
-            <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-950"><Icon name="check" /></div>
-            <div className="text-lg font-bold">{tx("Charging complete")}</div>
-            <div className="text-sm muted">{t('unplug')}</div>
+        <Card className="space-y-4 overflow-hidden p-0">
+          <div className="relative bg-electric px-5 pb-6 pt-6 text-center text-white">
+            <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-white/10" />
+            <div className="relative mx-auto mb-2 grid h-14 w-14 place-items-center rounded-full bg-white text-brand-600 shadow-lift animate-pop"><Icon name="check" className="h-7 w-7" strokeWidth={3} /></div>
+            <div className="relative text-xl font-extrabold">{tx("Charging complete")}</div>
+            <div className="relative text-sm text-white/85">{t('unplug')}</div>
+            <div className="relative mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold tabular-nums">{((s.energyWh || 0) / 1000).toFixed(2)}</div><div className="text-[10px] text-white/80">kWh</div></div>
+              <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold tabular-nums">{rs0(s.costs?.totalPaise)}</div><div className="text-[10px] text-white/80">{t('total')}</div></div>
+              <div className="rounded-2xl bg-white/15 p-2"><div className="text-lg font-extrabold tabular-nums">{duration(s.startedAt, s.endedAt)}</div><div className="text-[10px] text-white/80">{tx('Time')}</div></div>
+            </div>
           </div>
-          <dl className="divide-y divide-ink-100 text-sm dark:divide-ink-800">
+          <div className="space-y-4 px-5 pb-5">
+          {s.energyWh > 0 && <div className="flex items-center gap-2 rounded-2xl bg-brand-50 px-3 py-2 text-xs text-brand-900 dark:bg-brand-950 dark:text-brand-200"><Icon name="leaf" className="h-4 w-4 shrink-0" />{tx('About {{kg}} kg CO₂ avoided vs. petrol', { kg: ((s.energyWh / 1000) * 0.6).toFixed(1) })}</div>}
+          <dl className="divide-y divide-dashed divide-ink-200 text-sm dark:divide-ink-700">
             <div className="flex justify-between py-2"><dt className="muted">{t('energy')}</dt><dd className="font-semibold">{((s.energyWh || 0) / 1000).toFixed(3)} kWh</dd></div>
             <div className="flex justify-between py-2"><dt className="muted">{tx("Time")}</dt><dd>{duration(s.startedAt, s.endedAt)}</dd></div>
             {s.costs && <div className="flex justify-between py-2"><dt className="muted">{tx("Taxable value")}</dt><dd>{rs(s.costs.taxablePaise)}</dd></div>}
@@ -302,9 +325,11 @@ export default function LiveSession() {
           {s.invoice?.number ? (
             <ActionButton className="btn-secondary w-full" onClick={() => download(`/api/sessions/${id}/invoice.pdf`, `${s.invoice.number.replace(/\//g, '-')}.pdf`, { sessionId: id })}><Icon name="doc" className="h-4 w-4" /> {t('invoice')} {s.invoice.number}</ActionButton>
           ) : s.costs?.totalPaise > 0 ? <div className="text-center text-xs muted">{tx("Your invoice is being prepared.")}</div> : null}
-          {owner && <div><div className="mb-1 text-center text-sm font-semibold">{t('rate')}</div><Rating s={s} sessionId={id} /></div>}
+          <button type="button" className="btn w-full bg-[#25D366] text-white hover:brightness-105" onClick={() => shareReceipt(s)}><Icon name="share" className="h-4 w-4" /> {tx('Share receipt on WhatsApp')}</button>
+          {owner && <div className="rounded-2xl bg-ink-50 p-3 dark:bg-ink-800"><div className="mb-1 text-center text-sm font-semibold">{t('rate')}</div><Rating s={s} sessionId={id} /></div>}
           {owner && <ActionButton className="btn-ghost btn-sm w-full" onClick={async () => { const r = await api(`/api/sessions/${id}/unlock`, { method: 'POST', sessionId: id }); toast(r.message, r.ok ? 'green' : 'amber'); }}>{tx("Cable stuck? Unlock connector")}</ActionButton>}
           {!tokens.driver() && <Link to="/login" className="block rounded-xl bg-ink-50 p-3 text-center text-sm dark:bg-ink-800">{t('installApp')} →</Link>}
+          </div>
         </Card>
       )}
 

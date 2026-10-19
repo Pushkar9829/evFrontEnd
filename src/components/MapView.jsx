@@ -19,6 +19,12 @@ function Fit({ points, center }) {
     else if (points.length === 1) map.setView(points[0], 14);
     else if (center) map.setView(center, 11);
   }, [JSON.stringify(points), center?.[0]]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Leaflet does not notice container resizes (lazy mount, map toggle, sidebar): re-measure or tiles render at the wrong zoom.
+  useEffect(() => {
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [map]);
   return null;
 }
 

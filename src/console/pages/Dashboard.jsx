@@ -2,7 +2,45 @@ import { lazy, Suspense, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi, useInterval } from '../../lib/hooks.js';
 import { dt, duration, kwh, kw, rs } from '../../lib/format.js';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, ErrorBox, Loading, Stat, Status, Table } from '../../components/ui.jsx';
+
+/** % change today vs yesterday, null when there is nothing to compare. */
+const delta = (now, before) => (before ? Math.round(((now - before) / before) * 100) : null);
+
+function MapLegend() {
+  return (
+    <div className="flex flex-wrap gap-3 px-1 pt-2 text-[11px] font-semibold muted">
+      {[['bg-brand-500', 'Available'], ['bg-sky-500', 'Charging / busy'], ['bg-red-500', 'Faulted'], ['bg-ink-400', 'Offline']].map(([c, l]) => <span key={l} className="inline-flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${c}`} />{l}</span>)}
+    </div>
+  );
+}
+
+function TrendChart({ series, money }) {
+  const rows = series.map((d) => ({ day: d.day.slice(5), kwh: +(d.energyWh / 1000).toFixed(1), revenue: Math.round(d.revenuePaise / 100), sessions: d.sessions }));
+  return (
+    <Card className="p-4">
+      <div className="mb-2 flex items-baseline justify-between"><div className="font-semibold">Last 14 days</div><div className="text-xs muted">{money ? 'Revenue (₹) and energy (kWh)' : 'Energy (kWh)'}</div></div>
+      <div className="h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={rows} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+            <defs>
+              <linearGradient id="g-kwh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#06b6d4" stopOpacity={0.35} /><stop offset="100%" stopColor="#06b6d4" stopOpacity={0} /></linearGradient>
+              <linearGradient id="g-rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgb(var(--brand-500))" stopOpacity={0.4} /><stop offset="100%" stopColor="rgb(var(--brand-500))" stopOpacity={0} /></linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-ink-100 dark:stroke-ink-800" />
+            <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+            <YAxis yAxisId="l" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+            {money && <YAxis yAxisId="r" orientation="right" hide />}
+            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} />
+            {money && <Area yAxisId="r" type="monotone" dataKey="revenue" name="Revenue ₹" stroke="rgb(var(--brand-500))" strokeWidth={2} fill="url(#g-rev)" />}
+            <Area yAxisId="l" type="monotone" dataKey="kwh" name="Energy kWh" stroke="#06b6d4" strokeWidth={2} fill="url(#g-kwh)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
 import { PageHeader, useConsole } from '../Console.jsx';
 
 const MapView = lazy(() => import('../../components/MapView.jsx'));
@@ -49,6 +87,7 @@ function OpsCentre() {
           <Suspense fallback={<Loading />}>
             <MapView height={440} markers={ch.map((c) => ({ id: c.id, lat: c.location?.lat, lng: c.location?.lng, kind: markerKind(c.statuses, c.online, c.charging), label: c.statuses.length, popup: <Link to={`/console/chargers/${c.id}`} className="font-semibold">{c.ocppId} · {c.tenant}</Link> }))} />
           </Suspense>
+          <MapLegend />
         </div>
         <Card className="xl:col-span-2">
           <div className="border-b border-ink-100 px-4 py-3 font-semibold dark:border-ink-800">Live session board</div>
@@ -97,19 +136,21 @@ function TenantDashboard() {
       <PageHeader title="Dashboard" sub="Live · refreshes every 10 s" />
       {can('site.revenue_share') && <SiteHostSummary />}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
-        <Stat label="Online" value={`${data.chargers.online}/${data.chargers.total}`} icon="plug" />
-        <Stat label="Offline" value={data.chargers.offline} icon="alert" tone="red" />
-        <Stat label="Faulted" value={data.chargers.faulted} icon="alert" tone="red" />
-        <Stat label="Charging now" value={data.activeSessions} icon="bolt" />
-        {can('finance.view') && <Stat label="Today revenue" value={rs(data.today.revenuePaise, { decimals: 0 })} sub={`${data.today.sessions} sessions`} icon="money" />}
-        <Stat label="Today energy" value={kwh(data.today.energyWh, 1)} icon="bolt" />
-        <Stat label="Open issues" value={data.openComplaints + data.openAlerts} sub={`${data.openComplaints} complaints · ${data.openAlerts} alerts · ${data.reviewQueue} to review`} icon="bell" />
+        <Stat label="Online" value={`${data.chargers.online}/${data.chargers.total}`} sub={data.chargers.total ? `${Math.round((data.chargers.online / data.chargers.total) * 100)}% available` : undefined} icon="plug" tone="blue" />
+        <Stat label="Offline" value={data.chargers.offline} icon="alert" tone={data.chargers.offline ? 'red' : 'gray'} />
+        <Stat label="Faulted" value={data.chargers.faulted} icon="alert" tone={data.chargers.faulted ? 'red' : 'gray'} />
+        <Stat label="Charging now" value={data.activeSessions} icon="bolt" tone="cyan" />
+        {can('finance.view') && <Stat label="Today revenue" value={rs(data.today.revenuePaise, { decimals: 0 })} delta={delta(data.today.revenuePaise, data.yesterday?.revenuePaise)} sub={data.yesterday?.revenuePaise ? "vs yesterday" : `${data.today.sessions} sessions`} spark={data.series?.map((d) => d.revenuePaise)} icon="money" />}
+        <Stat label="Today energy" value={kwh(data.today.energyWh, 1)} delta={delta(data.today.energyWh, data.yesterday?.energyWh)} sub={`${data.today.sessions} sessions`} spark={data.series?.map((d) => d.energyWh)} icon="leaf" tone="green" />
+        <Stat label="Open issues" value={data.openComplaints + data.openAlerts} sub={`${data.openComplaints} complaints · ${data.openAlerts} alerts · ${data.reviewQueue} to review`} icon="bell" tone={data.openComplaints + data.openAlerts ? 'amber' : 'gray'} />
       </div>
+      {data.series && <div className="mt-4"><TrendChart series={data.series} money={can('finance.view')} /></div>}
       <div className="mt-4 grid gap-4 xl:grid-cols-5">
         <div className="xl:col-span-3">
           <Suspense fallback={<Loading />}>
             <MapView height={400} markers={data.map.map((c) => ({ id: c.id, lat: c.location?.lat, lng: c.location?.lng, kind: markerKind(c.statuses, c.online, c.charging), label: c.statuses.length, popup: <Link to={`/console/chargers/${c.id}`} className="font-semibold">{c.ocppId} · {c.site}</Link> }))} />
           </Suspense>
+          <MapLegend />
         </div>
         <div className="space-y-4 xl:col-span-2">
           {sessions.data && (

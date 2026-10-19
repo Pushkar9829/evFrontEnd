@@ -36,6 +36,17 @@ const paths = {
   play: 'M6 4l14 8-14 8z',
   layers: 'm12 2 10 5-10 5L2 7zm-10 10 10 5 10-5M2 17l10 5 10-5',
   out: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5m5 5H3',
+  sun: 'M12 3v2m0 14v2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M3 12h2m14 0h2M5.6 18.4 7 17m10-10 1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  share: 'M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14',
+  gauge: 'M12 14l4-4M3.5 18a10 10 0 1 1 17 0',
+  leaf: 'M11 20A7 7 0 0 1 4 13c0-5 4-9 16-9 0 12-4 16-9 16zm0 0c0-4 2-7 6-9',
+  route: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm12-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 15V9a4 4 0 0 1 4-4h6M18 9v6a4 4 0 0 1-4 4H8',
+  filter: 'M3 5h18l-7 8v6l-4 2v-8z',
+  wallet: 'M3 7a2 2 0 0 1 2-2h13v4M3 7v10a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zm14 7h.01',
+  sparkle: 'M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6',
+  battery: 'M3 8h15a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zm19 3v2',
+  qr: 'M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h3v3h-3zm4 4h3v3h-3zm-4 3h0m7-7h0',
   phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z',
 };
 export function Icon({ name, className = 'h-5 w-5', strokeWidth = 2 }) {
@@ -95,15 +106,24 @@ const STATUS_TONE = {
 };
 export const Status = ({ value, label }) => <Badge tone={STATUS_TONE[value] || 'gray'}>{label || titleCase(value || '—')}</Badge>;
 
-export function Stat({ label, value, sub, icon, tone }) {
+export function Stat({ label, value, sub, icon, tone, delta, spark }) {
+  const bubble = tone === 'red' ? 'red' : tone || 'green';
   return (
     <Card className="p-4">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wide muted">{label}</div>
-        {icon && <Icon name={icon} className={cx('h-4 w-4', tone === 'red' ? 'text-red-500' : 'text-brand-600')} />}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-wider muted">{label}</div>
+          <div className="mt-1 text-2xl font-extrabold tabular-nums">{value}</div>
+        </div>
+        {icon && <IconBubble name={icon} tone={bubble} size="sm" />}
       </div>
-      <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
-      {sub && <div className="mt-0.5 text-xs muted">{sub}</div>}
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <div className="min-w-0 text-xs muted">
+          {delta !== undefined && delta !== null && <span className={cx('mr-1 font-semibold', delta > 0 ? 'text-brand-600' : delta < 0 ? 'text-red-600' : 'muted')}>{delta > 0 ? '▲' : delta < 0 ? '▼' : '•'} {Math.abs(delta)}%</span>}
+          {sub}
+        </div>
+        {spark && <Sparkline data={spark} />}
+      </div>
     </Card>
   );
 }
@@ -156,7 +176,7 @@ export function Tabs({ tabs, value, onChange }) {
 export function Table({ columns, rows, onRow, empty = 'Nothing here yet.', rowKey = (r, i) => r._id || r.id || i }) {
   if (!rows?.length) return <Empty title={empty} />;
   return (
-    <div className="overflow-x-auto">
+    <div className={cx('overflow-x-auto', rows.length > 15 && 'max-h-[70vh] overflow-y-auto')}>
       <table className="min-w-full divide-y divide-ink-100 dark:divide-ink-800">
         <thead><tr>{columns.map((c) => <th key={c.key} className={cx('th', c.className)}>{c.label}</th>)}</tr></thead>
         <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
@@ -262,5 +282,111 @@ export function ReasonModal({ open, title, onClose, onSubmit, children, submitLa
         <ErrorBox error={err} />
       </div>
     </Modal>
+  );
+}
+
+
+// ---------------------------------------------------------------- revamp building blocks
+
+/** Coloured round icon (section headers, list rows, KPI cards). */
+const BUBBLE = {
+  green: 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300',
+  blue: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+  amber: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  red: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  violet: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  cyan: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
+  orange: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  gray: 'bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300',
+};
+export function IconBubble({ name, tone = 'green', size = 'md', className }) {
+  const s = size === 'lg' ? 'h-12 w-12 rounded-2xl' : size === 'sm' ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl';
+  return <span className={cx('grid shrink-0 place-items-center', s, BUBBLE[tone] || BUBBLE.green, className)}><Icon name={name} className={size === 'lg' ? 'h-6 w-6' : size === 'sm' ? 'h-4 w-4' : 'h-5 w-5'} /></span>;
+}
+
+/** "60 kW DC FAST" — DC fast in orange, AC in cyan, 2W/3W slow in green. */
+export function PowerBadge({ kw, type, className }) {
+  const dc = type === 'DC';
+  const fast = dc && kw >= 25;
+  return (
+    <span className={cx('inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide', fast ? 'bg-fast-100 text-fast-700 dark:bg-orange-950 dark:text-orange-300' : dc ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300', className)}>
+      <Icon name="bolt" className="h-3 w-3" strokeWidth={2.5} />{kw} kW {fast ? 'DC fast' : type}
+    </span>
+  );
+}
+
+/** Small coloured dot + optional pulse for "available now" / live states. */
+export function StatusDot({ tone = 'green', pulse }) {
+  const c = { green: 'bg-brand-500', blue: 'bg-sky-500', red: 'bg-red-500', amber: 'bg-amber-500', gray: 'bg-ink-400' }[tone];
+  return (
+    <span className="relative inline-flex h-2.5 w-2.5">
+      {pulse && <span className={cx('absolute inline-flex h-full w-full rounded-full animate-pulse-ring', c)} />}
+      <span className={cx('relative inline-flex h-2.5 w-2.5 rounded-full', c)} />
+    </span>
+  );
+}
+
+export function Chip({ on, onClick, icon, children, className }) {
+  return (
+    <button type="button" aria-pressed={!!on} onClick={onClick} className={cx('chip', on && 'chip-on', className)}>
+      {icon && <Icon name={icon} className="h-3.5 w-3.5" />}{children}
+    </button>
+  );
+}
+
+export const Skeleton = ({ className }) => <div className={cx('skeleton', className)} aria-hidden="true" />;
+
+export function SkeletonCards({ n = 3 }) {
+  return (
+    <div className="space-y-3" aria-label="Loading">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="card space-y-3 p-4"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-1/3" /><div className="flex gap-2"><Skeleton className="h-6 w-24" /><Skeleton className="h-6 w-20" /></div></div>
+      ))}
+    </div>
+  );
+}
+
+/** Circular progress (amount used / battery). value 0..100 */
+export function ProgressRing({ value = 0, size = 200, stroke = 14, tone = 'brand', children }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(100, value));
+  const color = tone === 'amber' ? '#f59e0b' : tone === 'red' ? '#dc2626' : 'url(#cx-ring)';
+  return (
+    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <defs>
+          <linearGradient id="cx-ring" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgb(var(--brand-500))" />
+            <stop offset="100%" stopColor="#06b6d4" />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-ink-100 dark:stroke-ink-800" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} stroke={color} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} style={{ transition: 'stroke-dashoffset .8s ease' }} />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
+    </div>
+  );
+}
+
+/** Small inline sparkline (KPI cards). */
+export function Sparkline({ data = [], width = 96, height = 28, className }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const pts = data.map((d, i) => `${(i / (data.length - 1)) * width},${height - ((d - min) / (max - min || 1)) * (height - 4) - 2}`).join(' ');
+  return (
+    <svg width={width} height={height} className={className} aria-hidden="true">
+      <polyline points={pts} fill="none" stroke="rgb(var(--brand-500))" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function Stars({ value = 0, count }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-xs" aria-label={`${value} of 5 stars`}>
+      <Icon name="star" className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+      <b>{Number(value).toFixed(1)}</b>{count !== undefined && <span className="muted">({count})</span>}
+    </span>
   );
 }

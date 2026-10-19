@@ -6,7 +6,7 @@ import { useApi } from '../lib/hooks.js';
 import { tx, useI18n } from '../lib/i18n.jsx';
 import { useTemporaryBrand } from '../lib/brand.jsx';
 import { rs, rs0 } from '../lib/format.js';
-import { Card, ErrorBox, Icon, Loading, Spinner, Status, cx } from '../components/ui.jsx';
+import { Card, ErrorBox, Icon, IconBubble, Loading, Spinner, Status, cx } from '../components/ui.jsx';
 import { CONNECTOR_LABEL, ChargerCard, nextChangeText, priceLine } from './ChargerBits.jsx';
 
 function loadRazorpay() {
@@ -112,96 +112,138 @@ export default function QrStart() {
     }
   }
 
+  // Say why the button is disabled instead of a silent grey button.
+  const blocker = cfg?.paymentsPaused && mode === 'upi' ? tx('Payments are paused') : !phoneOk ? tx('Enter your mobile number above') : !amountOk ? tx('Choose an amount') : null;
+  const vt = conn.vehicleTypes || [];
+  const kmPerKwh = vt.includes('car') ? 7 : vt.includes('3W') ? 12 : 30; // rough range for the ≈km hint
+  const finalEst = custom ? null : est;
+
   return (
     <div className="space-y-4 p-4">
-      <Card className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide muted">{data.operator}</div>
-            <h1 className="text-lg font-bold">{data.site?.name}</h1>
-            <div className="text-sm muted">{data.site?.address}</div>
+      <Card className="overflow-hidden">
+        <div className="bg-electric p-4 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-white/75">{data.operator}</div>
+              <h1 className="truncate text-lg font-extrabold">{data.site?.name}</h1>
+              <div className="truncate text-sm text-white/80">{data.site?.address}</div>
+            </div>
+            <span className="shrink-0 rounded-full bg-white p-0.5"><Status value={conn.status} /></span>
           </div>
-          <Status value={conn.status} />
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-xl bg-ink-50 p-2 dark:bg-ink-800"><div className="text-xs muted">{tx("Connector")} {conn.number}</div><div className="font-semibold">{CONNECTOR_LABEL[conn.type] || conn.type} · {conn.maxPowerKw} kW</div></div>
-          <div className="rounded-xl bg-ink-50 p-2 dark:bg-ink-800"><div className="text-xs muted">{t('price')}</div><div className="font-semibold">{rs(data.price?.energyPaisePerKwh)}/kWh</div></div>
-        </div>
-        <div className="mt-2 text-xs muted">{priceLine(data.price, t)}</div>
-        {data.price?.nextChange && <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">{nextChangeText(data.price)} — {tx("the price when you start is locked for your whole session.")}</div>}
-        {/* QR-06: compare with the ID printed on the charger; our QR only opens chargex */}
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-ink-300 p-2 text-xs dark:border-ink-700">
-          <Icon name="shield" className="h-4 w-4 text-brand-600" />
-          <span>{tx("Check this matches the ID printed on the charger:")} <b className="font-mono">{data.printedId}</b>{tx(". We never ask you to pay a personal UPI ID.")}</span>
-        </div>
-        {data.connectors?.length > 1 && (
-          <div className="mt-3 flex gap-2 overflow-x-auto">
-            {data.connectors.map((c) => (
-              <Link key={c.number} to={`/c/${encodeURIComponent(ocppId)}/${c.number}`} replace className={cx('btn-sm btn border', c.number === conn.number ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950' : 'border-ink-200 dark:border-ink-700')}>#{c.number} {CONNECTOR_LABEL[c.type] || c.type}</Link>
-            ))}
+          <div className="mt-3 flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/20 text-xl font-black">{conn.number}</div>
+            <div className="min-w-0">
+              <div className="font-bold">{CONNECTOR_LABEL[conn.type] || conn.type}</div>
+              <div className="text-xs text-white/85">{conn.maxPowerKw} kW {conn.powerType}{conn.powerType === 'DC' && conn.maxPowerKw >= 25 ? ` · ${tx('DC fast')}` : ''}</div>
+            </div>
+            <div className="ml-auto text-right">
+              <div className="text-2xl font-extrabold tabular-nums">{rs(data.price?.energyPaisePerKwh)}</div>
+              <div className="text-[11px] text-white/80">{t('perKwh')}{data.price?.band && data.price.band !== 'Standard' ? ` · ${data.price.band}` : ''}</div>
+            </div>
           </div>
-        )}
+        </div>
+        <div className="space-y-2 p-4 pt-3">
+          <div className="text-xs muted">{priceLine(data.price, t)}</div>
+          {data.price?.nextChange && <div className="text-xs font-medium text-amber-700 dark:text-amber-400">{nextChangeText(data.price)} — {tx("the price when you start is locked for your whole session.")}</div>}
+          {/* QR-06: compare with the ID printed on the charger; our QR only opens chargex */}
+          <div className="flex items-center gap-2 rounded-xl border border-dashed border-brand-300 bg-brand-50/50 p-2 text-xs dark:border-brand-800 dark:bg-brand-950/30">
+            <Icon name="shield" className="h-4 w-4 shrink-0 text-brand-600" />
+            <span>{tx("Check this matches the ID printed on the charger:")} <b className="font-mono">{data.printedId}</b>{tx(". We never ask you to pay a personal UPI ID.")}</span>
+          </div>
+          {data.connectors?.length > 1 && (
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pt-1">
+              {data.connectors.map((c) => (
+                <Link key={c.number} to={`/c/${encodeURIComponent(ocppId)}/${c.number}`} replace className={cx('chip', c.number === conn.number && 'chip-on')}>#{c.number} {CONNECTOR_LABEL[c.type] || c.type}</Link>
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
 
       {!usable ? (
         <ErrorBox error={{ message: conn.status === 'Offline' ? tx('This charger is offline right now. Nothing will be charged. Try another charger nearby.') : tx('This connector is not available right now. Try another connector.') }} />
       ) : (
         <>
-          {user && (user.autopay?.status === 'active' || user.fleet) && (
-            <Card className="flex gap-2 p-2">
-              {[{ v: 'upi', l: tx('Prepay UPI') }, user.autopay?.status === 'active' && { v: 'autopay', l: tx('UPI Autopay') }, user.fleet && { v: 'fleet', l: tx('Fleet account') }].filter(Boolean).map((o) => (
-                <button key={o.v} type="button" onClick={() => setMode(o.v)} className={cx('btn-sm btn flex-1', mode === o.v ? 'bg-brand-600 text-white' : 'btn-ghost')}>{o.l}</button>
-              ))}
-            </Card>
-          )}
-          {mode === 'upi' && (
-            <Card className="space-y-3 p-4">
-              <div className="font-semibold">{t('chooseAmount')}</div>
-              {suggestion && (
-                <button type="button" onClick={() => { setAmount(suggestion.paise); setCustom(''); }} className="w-full rounded-xl bg-brand-50 p-3 text-left text-sm text-brand-800 dark:bg-brand-950 dark:text-brand-200">
-                  Charge your {vehicle.label || vehicle.model} to ~80%: about <b>{rs0(suggestion.paise)}</b>
-                </button>
-              )}
-              <div className="grid grid-cols-3 gap-2">
-                {data.amounts.map((a) => (
-                  <button key={a.amountPaise} type="button" onClick={() => { setAmount(a.amountPaise); setCustom(''); }} className={cx('rounded-2xl border-2 p-3 text-center transition', !custom && amount === a.amountPaise ? 'border-brand-600 bg-brand-50 dark:bg-brand-950' : 'border-ink-200 dark:border-ink-700')}>
-                    <div className="text-lg font-bold">{rs0(a.amountPaise)}</div>
-                    <div className="text-[11px] muted">~{a.kwh} kWh · {a.minutes} min</div>
-                  </button>
-                ))}
-              </div>
-              <label className="block">
-                <span className="label">{t('custom')} (₹{minA / 100}–₹{maxA / 100})</span>
-                <input className="input" inputMode="numeric" placeholder={tx("e.g. 350")} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^\d]/g, ''))} />
-              </label>
-              {custom && !amountOk && <div className="text-xs text-red-600">Enter between ₹{minA / 100} and ₹{maxA / 100}.</div>}
-              {!custom && est && <div className="text-xs muted">{tx("About {{kwh}} kWh, roughly {{min}} min at full power.", { kwh: est.kwh, min: est.minutes })}</div>}
-            </Card>
-          )}
           {!loggedIn && (
             <Card className="p-4">
               <label className="block">
-                <span className="label">{t('phoneForReceipt')}</span>
-                <input className="input text-base" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <span className="label flex items-center gap-1.5"><Icon name="phone" className="h-3.5 w-3.5" />{t('phoneForReceipt')}</span>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base font-semibold muted">+91</span>
+                  <input className={cx('input h-12 pl-12 text-base tracking-wide', phone && !phoneOk && 'border-red-400')} inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  {phoneOk && <Icon name="check" className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-600" />}
+                </div>
               </label>
               {phone && !phoneOk && <div className="mt-1 text-xs text-red-600">{tx("Enter a valid 10-digit mobile number.")}</div>}
-              <div className="mt-2 text-xs muted">{tx("No account needed.")} <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="font-semibold text-brand-700">{tx("Log in")}</Link> {tx("for history and one-tap payments.")}</div>
+              <div className="mt-2 text-xs muted">{tx("No account needed.")} <Link to={`/login?next=${encodeURIComponent(location.pathname)}`} className="font-semibold text-brand-700 dark:text-brand-400">{tx("Log in")}</Link> {tx("for history and one-tap payments.")}</div>
+            </Card>
+          )}
+          {user && (user.autopay?.status === 'active' || user.fleet) && (
+            <div className="grid grid-flow-col gap-1 rounded-2xl bg-ink-100 p-1 dark:bg-ink-800">
+              {[{ v: 'upi', l: tx('Prepay UPI') }, user.autopay?.status === 'active' && { v: 'autopay', l: tx('UPI Autopay') }, user.fleet && { v: 'fleet', l: tx('Fleet account') }].filter(Boolean).map((o) => (
+                <button key={o.v} type="button" onClick={() => setMode(o.v)} className={cx('min-h-[40px] rounded-xl text-sm font-semibold transition', mode === o.v ? 'bg-white text-brand-700 shadow-card dark:bg-ink-950 dark:text-brand-300' : 'muted')}>{o.l}</button>
+              ))}
+            </div>
+          )}
+          {mode === 'upi' && (
+            <Card className="space-y-3 p-4">
+              <div className="flex items-baseline justify-between gap-2"><div className="font-bold">{t('chooseAmount')}</div><div className="text-[11px] muted">{tx('Unused money is refunded')}</div></div>
+              {suggestion && (
+                <button type="button" onClick={() => { setAmount(suggestion.paise); setCustom(''); }} className={cx('flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm transition', !custom && amount === suggestion.paise ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-900 dark:bg-brand-950 dark:text-brand-200')}>
+                  <Icon name="sparkle" className="h-5 w-5 shrink-0" />
+                  <span>{tx('Charge your {{v}} to ~80%', { v: vehicle.label || vehicle.model })}: <b>{rs0(suggestion.paise)}</b></span>
+                </button>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {data.amounts.map((a) => {
+                  const on = !custom && amount === a.amountPaise;
+                  return (
+                    <button key={a.amountPaise} type="button" onClick={() => { setAmount(a.amountPaise); setCustom(''); }} className={cx('relative rounded-2xl border-2 p-3 text-center transition', on ? 'border-brand-600 bg-brand-50 shadow-glow dark:bg-brand-950' : 'border-ink-200 hover:border-brand-300 dark:border-ink-700')}>
+                      {on && <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-brand-600 text-white"><Icon name="check" className="h-3 w-3" strokeWidth={3} /></span>}
+                      <div className="text-lg font-extrabold">{rs0(a.amountPaise)}</div>
+                      <div className="text-[11px] font-semibold text-brand-700 dark:text-brand-400">≈ {Math.round(a.kwh * kmPerKwh)} km</div>
+                      <div className="text-[10px] muted">{a.kwh} kWh · {a.minutes} min</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="block">
+                <span className="label">{t('custom')} (₹{minA / 100}–₹{maxA / 100})</span>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-semibold muted">₹</span>
+                  <input className="input pl-7" inputMode="numeric" placeholder={tx("e.g. 350")} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^\d]/g, ''))} />
+                </div>
+              </label>
+              {custom && !amountOk && <div className="text-xs text-red-600">{tx('Enter between ₹{{min}} and ₹{{max}}.', { min: minA / 100, max: maxA / 100 })}</div>}
+              {finalEst && <div className="flex items-center gap-2 rounded-xl bg-ink-50 px-3 py-2 text-xs dark:bg-ink-800"><Icon name="gauge" className="h-4 w-4 shrink-0 text-brand-600" />{tx("About {{kwh}} kWh, roughly {{min}} min at full power.", { kwh: finalEst.kwh, min: finalEst.minutes })}</div>}
             </Card>
           )}
           <div>
-            {!showPromo ? <button type="button" className="text-xs font-semibold text-brand-700" onClick={() => setShowPromo(true)}>{tx("Have a promo code?")}</button> : (
+            {!showPromo ? <button type="button" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400" onClick={() => setShowPromo(true)}><Icon name="sparkle" className="h-3.5 w-3.5" />{tx("Have a promo code?")}</button> : (
               <input className="input" placeholder={tx("Promo code")} value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase())} />
             )}
           </div>
+          <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+            {[['shield', tx('Secure UPI')], ['refresh', tx('Auto refund')], ['check', tx('Pay only for energy')]].map(([i, l]) => (
+              <div key={l} className="flex flex-col items-center gap-1 rounded-2xl bg-white p-2 shadow-card dark:bg-ink-900"><IconBubble name={i} tone="green" size="sm" /><span className="font-semibold">{l}</span></div>
+            ))}
+          </div>
           <ErrorBox error={err} />
-          <div className="sticky bottom-0 -mx-4 border-t border-ink-200 bg-white/95 p-4 backdrop-blur dark:border-ink-800 dark:bg-ink-950/95">
-            <button type="button" disabled={!canPay} onClick={pay} className="btn-primary btn-lg w-full">
+          <div className="sticky bottom-0 -mx-4 border-t border-ink-200 bg-white/95 p-4 pb-[max(env(safe-area-inset-bottom),16px)] backdrop-blur dark:border-ink-800 dark:bg-ink-950/95">
+            <button type="button" disabled={!canPay} onClick={pay} className="btn-electric btn-lg w-full disabled:bg-none disabled:bg-ink-200 disabled:text-ink-500 disabled:opacity-100 disabled:shadow-none dark:disabled:bg-ink-800 dark:disabled:text-ink-400">
               {busy ? <Spinner className="h-5 w-5 text-white" /> : <Icon name="bolt" />}
               {mode === 'upi' ? `${t('payUpi')} · ${rs0(finalAmount)}` : mode === 'fleet' ? tx('Start on fleet account') : tx('Start with UPI Autopay')}
             </button>
-            <div className="mt-2 text-center text-xs muted">
-              {mode === 'upi' ? <>{rs0(finalAmount)} {t('prepaidNote')}. {tx('No energy delivered = no money taken.')}</> : tx('You pay only for the energy used, after the session.')}
-            </div>
+            {blocker && !busy ? <div className="mt-2 flex items-center justify-center gap-1 text-center text-xs font-semibold text-amber-700 dark:text-amber-400"><Icon name="alert" className="h-3.5 w-3.5" />{blocker}</div> : (
+              <div className="mt-2 text-center text-xs muted">
+                {mode === 'upi' ? <>{rs0(finalAmount)} {t('prepaidNote')}. {tx('No energy delivered = no money taken.')}</> : tx('You pay only for the energy used, after the session.')}
+              </div>
+            )}
+            {mode === 'upi' && (
+              <div className="mt-2 flex items-center justify-center gap-1.5">
+                {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map((a) => <span key={a} className="rounded-md border border-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-500 dark:border-ink-700 dark:text-ink-400">{a}</span>)}
+              </div>
+            )}
           </div>
         </>
       )}

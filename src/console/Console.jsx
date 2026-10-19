@@ -1,10 +1,11 @@
 import { createContext, useContext, useMemo, useState } from 'react';
-import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, tokens } from '../lib/api.js';
 import { useApi } from '../lib/hooks.js';
 import { titleCase } from '../lib/format.js';
 import { Icon, Loading, cx } from '../components/ui.jsx';
 import { useTemporaryBrand } from '../lib/brand.jsx';
+import { ThemeToggle } from '../driver/DriverLayout.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import { ChargersPage, ChargerDetailPage, SitesPage } from './pages/Chargers.jsx';
 import { SessionsPage, SessionDetailPage, CustomersPage, ComplaintsPage } from './pages/Sessions.jsx';
@@ -80,6 +81,7 @@ export default function Console() {
   const has = !!tokens.staff();
   const { data: me, error, loading } = useApi(has ? '/api/auth/me' : null, { auth: 'staff' });
   const [open, setOpen] = useState(false);
+  const loc = useLocation();
   useTemporaryBrand(me?.branding);
   const value = useMemo(() => me && ({
     me,
@@ -95,31 +97,35 @@ export default function Console() {
     if (n.tenantOnly && value.isPlatform) return false;
     return !n.perm || value.can(n.perm);
   }).filter((n, i, arr) => !n.group || (arr[i + 1] && !arr[i + 1].group));
+  const sub = loc.pathname.replace(/^\/console\/?/, '');
+  const current = NAV.filter((n) => !n.group && n.to && sub.startsWith(n.to)).sort((a, b) => b.to.length - a.to.length)[0] || NAV[1];
   const ctxLabel = value.isPlatform ? 'Platform' : me.contexts.find((c) => c.tenant === me.ctx.tenant)?.tenantName;
   return (
     <Ctx.Provider value={value}>
       <div className="flex min-h-dvh">
-        <aside className={cx('print:hidden fixed inset-y-0 left-0 z-[900] w-64 shrink-0 overflow-y-auto border-r border-ink-200 bg-white p-3 transition-transform dark:border-ink-800 dark:bg-ink-900 lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
+        <aside className={cx('print:hidden fixed inset-y-0 left-0 z-[900] flex w-64 shrink-0 flex-col overflow-y-auto bg-night p-3 text-ink-300 transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
           <div className="mb-4 flex items-center gap-2 px-2 pt-1">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white"><Icon name="bolt" className="h-5 w-5" /></span>
-            <div className="min-w-0"><div className="truncate text-sm font-bold">{ctxLabel}</div><div className="truncate text-xs muted">{me.contexts.find((c) => c.role === me.ctx.role && c.tenant === me.ctx.tenant)?.roleName || titleCase(me.ctx.role)}</div></div>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-electric text-white shadow-glow"><Icon name="bolt" className="h-5 w-5" strokeWidth={2.5} /></span>
+            <div className="min-w-0"><div className="truncate text-sm font-bold text-white">{ctxLabel}</div><div className="truncate text-xs text-ink-400">{me.contexts.find((c) => c.role === me.ctx.role && c.tenant === me.ctx.tenant)?.roleName || titleCase(me.ctx.role)}</div></div>
           </div>
           <nav className="space-y-0.5">
-            {items.map((n) => (n.group ? <div key={n.group} className="px-2 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider muted">{n.group}</div> : (
-              <NavLink key={n.to} to={`/console/${n.to}`} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm', isActive ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300' : 'text-ink-700 hover:bg-ink-50 dark:text-ink-300 dark:hover:bg-ink-800')}>
-                <Icon name={n.icon} className="h-4 w-4" />{n.label}
+            {items.map((n) => (n.group ? <div key={n.group} className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-widest text-ink-500">{n.group}</div> : (
+              <NavLink key={n.to} to={`/console/${n.to}`} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition', isActive ? 'bg-white/10 font-semibold text-white before:absolute before:-left-3 before:top-1.5 before:h-6 before:w-1 before:rounded-r-full before:bg-brand-400' : 'text-ink-300 hover:bg-white/5 hover:text-white')}>
+                {({ isActive }) => <><Icon name={n.icon} className={cx('h-4 w-4', isActive && 'text-brand-400')} />{n.label}</>}
               </NavLink>
             )))}
           </nav>
+          <div className="mt-auto px-2 pt-6 text-[10px] text-ink-500">ChargeX CMS · OCPP 1.6J / 2.0.1 / 2.1</div>
         </aside>
         {open && <div className="fixed inset-0 z-[800] bg-ink-950/40 lg:hidden" onClick={() => setOpen(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="print:hidden sticky top-0 z-[700] flex items-center gap-3 border-b border-ink-200 bg-white/90 px-4 py-2.5 backdrop-blur dark:border-ink-800 dark:bg-ink-950/90">
             <button type="button" className="btn-ghost btn-sm lg:hidden" onClick={() => setOpen(true)} aria-label="Menu"><Icon name="list" /></button>
-            <div className="flex-1" />
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-sm"><span className="hidden muted sm:inline">{ctxLabel}</span><Icon name="chev" className="hidden h-3.5 w-3.5 muted sm:inline" /><span className="truncate font-semibold">{current.label}</span></div>
             <Workspace me={me} />
-            <span className="hidden text-sm muted sm:inline">{me.user.name || me.user.email}</span>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => { tokens.setStaff(null); location.href = '/console/login'; }}><Icon name="out" className="h-4 w-4" /> Sign out</button>
+            <ThemeToggle />
+            <div className="hidden items-center gap-2 sm:flex"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-xs font-bold uppercase text-brand-700 dark:bg-brand-950 dark:text-brand-300">{(me.user.name || me.user.email || '?')[0]}</span><span className="max-w-[160px] truncate text-sm font-medium">{me.user.name || me.user.email}</span></div>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => { tokens.setStaff(null); location.href = '/console/login'; }} aria-label="Sign out"><Icon name="out" className="h-4 w-4" /><span className="hidden md:inline">Sign out</span></button>
           </header>
           <main className="min-w-0 flex-1 p-4 lg:p-6 print:p-0">
             <Routes>
@@ -165,7 +171,7 @@ export default function Console() {
 export function PageHeader({ title, sub, children }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="text-xl font-bold">{title}</h1>{sub && <p className="text-sm muted">{sub}</p>}</div>
+      <div><h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>{sub && <p className="text-sm muted">{sub}</p>}</div>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { api, tokens } from '../lib/api.js';
 import { dt } from '../lib/format.js';
 import { ActionButton, Card, ErrorBox, Field } from '../components/ui.jsx';
+import { Hero } from './HostMode.jsx';
 
 export default function Privacy() {
   const [phone, setPhone] = useState('');
@@ -30,8 +31,8 @@ export default function Privacy() {
   };
   return (
     <div className="mx-auto max-w-md space-y-4 p-4">
-      <h1 className="text-xl font-bold">{tx("Your data")}</h1>
-      <p className="text-sm muted">Charged without an account? Verify your phone number to download your data or ask us to delete it. {tokens.driver() && <>{tx("Logged in drivers can do this from")} <Link className="font-semibold text-brand-700" to="/account">{tx("Account")}</Link>.</>}</p>
+      <Hero icon="shield" title={tx("Your data")} sub={tx("Download it or ask us to delete it.")} />
+      <p className="text-sm muted">{tx("Charged without an account? Verify your phone number to download your data or ask us to delete it.")} {tokens.driver() && <>{tx("Logged in drivers can do this from")} <Link className="font-semibold text-brand-700" to="/account">{tx("Account")}</Link>.</>}</p>
       <Card className="space-y-3 p-4">
         {done ? <div className="text-sm">{done}</div> : (
           <>
